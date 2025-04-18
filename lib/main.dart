@@ -9,7 +9,6 @@ void main() {
   runApp(const CGPATracker());
 }
 
-
 class CGPATracker extends StatefulWidget {
   const CGPATracker({super.key});
   
