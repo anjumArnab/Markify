@@ -62,7 +62,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Course Name
-              Text(
+             const Text(
                 'Course Name',
                 style: TextStyle(
                   fontSize: 14,
@@ -85,13 +85,13 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                     hintText: 'Enter course name',
                     hintStyle: TextStyle(color: AppTheme.textSecondary.withOpacity(0.6)),
                   ),
-                  style: TextStyle(color: AppTheme.textPrimary),
+                  style: const TextStyle(color: AppTheme.textPrimary),
                 ),
               ),
               const SizedBox(height: 16),
 
               // Grade Dropdown
-              Text(
+             const Text(
                 'Grade',
                 style: TextStyle(
                   fontSize: 14,
@@ -112,7 +112,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  icon: Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                  icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
                   dropdownColor: AppTheme.surfaceColor,
                   items: grades.map((String grade) {
                     return DropdownMenuItem<String>(
@@ -136,7 +136,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
               const SizedBox(height: 16),
 
               // Credit Hours
-              Text(
+              const Text(
                 'Credit Hours',
                 style: TextStyle(
                   fontSize: 14,
@@ -157,7 +157,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  icon: Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                  icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
                   dropdownColor: AppTheme.surfaceColor,
                   items: creditHours.map((String hours) {
                     return DropdownMenuItem<String>(
@@ -175,7 +175,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
               const SizedBox(height: 16),
 
               // Semester
-              Text(
+             const  Text(
                 'Semester',
                 style: TextStyle(
                   fontSize: 14,
@@ -196,14 +196,14 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  icon: Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                  icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
                   dropdownColor: AppTheme.surfaceColor,
                   items: semesters.map((String semester) {
                     return DropdownMenuItem<String>(
                       value: semester,
                       child: Text(
                         'Semester $semester',
-                        style: TextStyle(color: AppTheme.textPrimary),
+                        style: const TextStyle(color: AppTheme.textPrimary),
                       ),
                     );
                   }).toList(),
@@ -224,7 +224,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                   onPressed: () {
                     // Handle course addition logic here
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
+                     const SnackBar(
                         content: Text('Course added successfully!'),
                         backgroundColor: AppTheme.accentColor,
                         behavior: SnackBarBehavior.floating,
@@ -263,7 +263,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                    const  Text(
                         'Course Preview',
                         style: TextStyle(
                           fontSize: 16,
@@ -280,14 +280,14 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                             children: [
                               Text(
                                 _courseNameController.text,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w500,
                                   color: AppTheme.textPrimary,
                                 ),
                               ),
                               Text(
                                 'Semester $selectedSemester',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.textSecondary,
                                 ),
@@ -313,7 +313,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                               const SizedBox(width: 8),
                               Text(
                                 '$selectedCreditHours cr',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w500,
                                   color: AppTheme.textPrimary,
                                 ),
