@@ -12,11 +12,33 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   String selectedGrade = 'A';
   String selectedCreditHours = '3.0';
   String selectedSemester = '2-2';
-  final TextEditingController _courseNameController = TextEditingController(text: 'Introduction to Computing');
+  final TextEditingController _courseNameController =
+      TextEditingController(text: 'Introduction to Computing');
 
-  final List<String> grades = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'F'];
+  final List<String> grades = [
+    'A',
+    'A-',
+    'B+',
+    'B',
+    'B-',
+    'C+',
+    'C',
+    'C-',
+    'D+',
+    'D',
+    'F'
+  ];
   final List<String> creditHours = ['1.0', '1.5', '2.0', '3.0', '4.0', '5.0'];
-  final List<String> semesters = ['1-1', '1-2', '2-1', '2-2', '3-1', '3-2', '4-1', '4-2'];
+  final List<String> semesters = [
+    '1-1',
+    '1-2',
+    '2-1',
+    '2-2',
+    '3-1',
+    '3-2',
+    '4-1',
+    '4-2'
+  ];
 
   // Helper method to get color based on grade
   Color _getGradeColor(String grade) {
@@ -81,9 +103,11 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                   controller: _courseNameController,
                   decoration: InputDecoration(
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
                     hintText: 'Enter course name',
-                    hintStyle: TextStyle(color: AppTheme.textSecondary.withOpacity(0.6)),
+                    hintStyle: TextStyle(
+                        color: AppTheme.textSecondary.withOpacity(0.6)),
                   ),
                   style: const TextStyle(color: AppTheme.textPrimary),
                 ),
@@ -111,15 +135,18 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                           decoration: BoxDecoration(
                             color: Colors.grey[200],
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.primaryLightColor),
+                            border:
+                                Border.all(color: AppTheme.primaryLightColor),
                           ),
                           child: DropdownButtonFormField<String>(
                             value: selectedGrade,
                             decoration: const InputDecoration(
                               border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                              contentPadding:
+                                  EdgeInsets.symmetric(horizontal: 16),
                             ),
-                            icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                            icon: const Icon(Icons.keyboard_arrow_down,
+                                color: AppTheme.primaryColor),
                             dropdownColor: AppTheme.surfaceColor,
                             items: grades.map((String grade) {
                               return DropdownMenuItem<String>(
@@ -144,7 +171,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  
+
                   // Credit Hours Dropdown
                   Expanded(
                     child: Column(
@@ -163,15 +190,18 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                           decoration: BoxDecoration(
                             color: Colors.grey[200],
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.primaryLightColor),
+                            border:
+                                Border.all(color: AppTheme.primaryLightColor),
                           ),
                           child: DropdownButtonFormField<String>(
                             value: selectedCreditHours,
                             decoration: const InputDecoration(
                               border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                              contentPadding:
+                                  EdgeInsets.symmetric(horizontal: 16),
                             ),
-                            icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                            icon: const Icon(Icons.keyboard_arrow_down,
+                                color: AppTheme.primaryColor),
                             dropdownColor: AppTheme.surfaceColor,
                             items: creditHours.map((String hours) {
                               return DropdownMenuItem<String>(
@@ -215,7 +245,8 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                  icon: const Icon(Icons.keyboard_arrow_down,
+                      color: AppTheme.primaryColor),
                   dropdownColor: AppTheme.surfaceColor,
                   items: semesters.map((String semester) {
                     return DropdownMenuItem<String>(
@@ -268,7 +299,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                   ),
                 ),
               ),
-              
+
               // Preview Section
               const SizedBox(height: 24),
               Card(
@@ -316,9 +347,11 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: _getGradeColor(selectedGrade).withOpacity(0.2),
+                                  color: _getGradeColor(selectedGrade)
+                                      .withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
