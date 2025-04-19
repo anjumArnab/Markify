@@ -62,7 +62,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Course Name
-             const Text(
+              const Text(
                 'Course Name',
                 style: TextStyle(
                   fontSize: 14,
@@ -90,92 +90,111 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Grade Dropdown
-             const Text(
-                'Grade',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryLightColor),
-                ),
-                child: DropdownButtonFormField<String>(
-                  value: selectedGrade,
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
-                  dropdownColor: AppTheme.surfaceColor,
-                  items: grades.map((String grade) {
-                    return DropdownMenuItem<String>(
-                      value: grade,
-                      child: Text(
-                        grade,
-                        style: TextStyle(
-                          color: _getGradeColor(grade),
-                          fontWeight: FontWeight.w500,
+              // Grade and Credit Hours in a Row
+              Row(
+                children: [
+                  // Grade Dropdown
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Grade',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.textSecondary,
+                          ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      selectedGrade = newValue!;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Credit Hours
-              const Text(
-                'Credit Hours',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryLightColor),
-                ),
-                child: DropdownButtonFormField<String>(
-                  value: selectedCreditHours,
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppTheme.primaryLightColor),
+                          ),
+                          child: DropdownButtonFormField<String>(
+                            value: selectedGrade,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                            ),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                            dropdownColor: AppTheme.surfaceColor,
+                            items: grades.map((String grade) {
+                              return DropdownMenuItem<String>(
+                                value: grade,
+                                child: Text(
+                                  grade,
+                                  style: TextStyle(
+                                    color: _getGradeColor(grade),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                selectedGrade = newValue!;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
-                  dropdownColor: AppTheme.surfaceColor,
-                  items: creditHours.map((String hours) {
-                    return DropdownMenuItem<String>(
-                      value: hours,
-                      child: Text(hours),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      selectedCreditHours = newValue!;
-                    });
-                  },
-                ),
+                  const SizedBox(width: 16),
+                  
+                  // Credit Hours Dropdown
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Credit Hours',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppTheme.primaryLightColor),
+                          ),
+                          child: DropdownButtonFormField<String>(
+                            value: selectedCreditHours,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                            ),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                            dropdownColor: AppTheme.surfaceColor,
+                            items: creditHours.map((String hours) {
+                              return DropdownMenuItem<String>(
+                                value: hours,
+                                child: Text(hours),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                selectedCreditHours = newValue!;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
               // Semester
-             const  Text(
+              const Text(
                 'Semester',
                 style: TextStyle(
                   fontSize: 14,
@@ -224,7 +243,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                   onPressed: () {
                     // Handle course addition logic here
                     ScaffoldMessenger.of(context).showSnackBar(
-                     const SnackBar(
+                      const SnackBar(
                         content: Text('Course added successfully!'),
                         backgroundColor: AppTheme.accentColor,
                         behavior: SnackBarBehavior.floating,
@@ -263,7 +282,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                    const  Text(
+                      const Text(
                         'Course Preview',
                         style: TextStyle(
                           fontSize: 16,
