@@ -82,15 +82,15 @@ class _CGPATrackerState extends State<CGPATracker> {
           ),
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home),
+             icon: SizedBox.shrink(),
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.calculate),
+               icon: SizedBox.shrink(),
               label: 'Calculate',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.backup),
+             icon: SizedBox.shrink(),
               label: 'Backup',
             ),
           ],
