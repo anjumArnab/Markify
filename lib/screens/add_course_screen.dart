@@ -101,13 +101,12 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                 ),
                 child: TextField(
                   controller: _courseNameController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     hintText: 'Enter course name',
-                    hintStyle: TextStyle(
-                        color: AppTheme.textSecondary.withOpacity(0.6)),
+                    hintStyle: TextStyle(color: AppTheme.textSecondary),
                   ),
                   style: const TextStyle(color: AppTheme.textPrimary),
                 ),

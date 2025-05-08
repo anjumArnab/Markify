@@ -34,10 +34,6 @@ class _HomepageState extends State<Homepage> {
               color: AppTheme.accentColor,
               shape: BoxShape.circle,
             ),
-            child: IconButton(
-              icon: const Icon(Icons.refresh, color: Colors.white),
-              onPressed: () {},
-            ),
           ),
         ],
       ),
@@ -48,7 +44,7 @@ class _HomepageState extends State<Homepage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Current CGPA Section
-            Container(
+              Container(
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
                 decoration: const BoxDecoration(
                   border: Border(
@@ -85,7 +81,7 @@ class _HomepageState extends State<Homepage> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Semester Sections
               _buildSemesterSection(
                 'Semester 1-1',
@@ -104,9 +100,10 @@ class _HomepageState extends State<Homepage> {
     );
   }
 
-  Widget _buildSemesterSection(String semesterName, String gpa, List<Map<String, String>> courses) {
+  Widget _buildSemesterSection(
+      String semesterName, String gpa, List<Map<String, String>> courses) {
     bool isExpanded = expandedSemesters[semesterName] ?? false;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: const BoxDecoration(
@@ -146,7 +143,9 @@ class _HomepageState extends State<Homepage> {
                       ),
                       const SizedBox(width: 8),
                       Icon(
-                        isExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                        isExpanded
+                            ? Icons.keyboard_arrow_down
+                            : Icons.keyboard_arrow_right,
                         color: AppTheme.primaryColor,
                       ),
                     ],
@@ -155,7 +154,7 @@ class _HomepageState extends State<Homepage> {
               ),
             ),
           ),
-          
+
           // Course List (only shown if expanded)
           if (isExpanded)
             ListView.builder(
@@ -199,14 +198,16 @@ class _HomepageState extends State<Homepage> {
                           ),
                           const SizedBox(width: 35),
                           IconButton(
-                            icon: const Icon(Icons.edit, color: AppTheme.accentColor, size: 20),
+                            icon: const Icon(Icons.edit,
+                                color: AppTheme.accentColor, size: 20),
                             onPressed: () {},
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                           ),
                           const SizedBox(width: 10),
                           IconButton(
-                            icon: const Icon(Icons.delete, color: AppTheme.textSecondary, size: 20),
+                            icon: const Icon(Icons.delete,
+                                color: AppTheme.textSecondary, size: 20),
                             onPressed: () {},
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -218,12 +219,12 @@ class _HomepageState extends State<Homepage> {
                 );
               },
             ),
-            const SizedBox(height: 8),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
-  
+
   // Helper method to get color based on grade
   Color _getGradeColor(String grade) {
     switch (grade) {
