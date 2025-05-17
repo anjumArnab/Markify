@@ -1,35 +1,35 @@
-import 'package:cgpa_tracker/screens/add_course_screen.dart';
-import 'package:cgpa_tracker/screens/google_sheets_sync_screen.dart';
-import 'package:cgpa_tracker/screens/homepage.dart';
-import 'package:cgpa_tracker/theme.dart';
+import '/screens/add_course_screen.dart';
+import '/screens/google_sheets_sync_screen.dart';
+import '/screens/homepage.dart';
+import '/theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const CGPATracker());
+  runApp(const Markify());
 }
 
-class CGPATracker extends StatefulWidget {
-  const CGPATracker({super.key});
-  
+class Markify extends StatefulWidget {
+  const Markify({super.key});
+
   @override
-  State<CGPATracker> createState() => _CGPATrackerState();
+  State<Markify> createState() => _MarkifyState();
 }
 
-class _CGPATrackerState extends State<CGPATracker> {
+class _MarkifyState extends State<Markify> {
   int _currentIndex = 0;
-  
+
   final List<Widget> _screens = const [
     Homepage(),
     AddCourseScreen(),
     GoogleSheetsSyncScreen(),
   ];
-  
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'CGPA Tracker',
+      title: 'Markify',
       theme: ThemeData(
         primaryColor: AppTheme.primaryColor,
         colorScheme: ColorScheme.fromSeed(
@@ -82,15 +82,15 @@ class _CGPATrackerState extends State<CGPATracker> {
           ),
           items: const [
             BottomNavigationBarItem(
-             icon: SizedBox.shrink(),
+              icon: SizedBox.shrink(),
               label: 'Home',
             ),
             BottomNavigationBarItem(
-               icon: SizedBox.shrink(),
+              icon: SizedBox.shrink(),
               label: 'Calculate',
             ),
             BottomNavigationBarItem(
-             icon: SizedBox.shrink(),
+              icon: SizedBox.shrink(),
               label: 'Backup',
             ),
           ],

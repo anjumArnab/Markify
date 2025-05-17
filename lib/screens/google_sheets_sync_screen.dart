@@ -1,4 +1,4 @@
-import 'package:cgpa_tracker/theme.dart';
+import '/theme.dart';
 import 'package:flutter/material.dart';
 
 class GoogleSheetsSyncScreen extends StatelessWidget {
@@ -42,7 +42,8 @@ class GoogleSheetsSyncScreen extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 8),
                     ),
                     child: const Text(
                       'Sync',
@@ -54,9 +55,9 @@ class GoogleSheetsSyncScreen extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             const Divider(thickness: 1),
-            
+
             // Restore from Google Sheet Section
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -78,7 +79,8 @@ class GoogleSheetsSyncScreen extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                     ),
                     child: const Text(
                       'Restore',
@@ -90,9 +92,9 @@ class GoogleSheetsSyncScreen extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             const Divider(thickness: 1),
-            
+
             // Last Sync Status Section
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -136,7 +138,7 @@ class GoogleSheetsSyncScreen extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Additional feature - Cloud status
             const SizedBox(height: 32),
             Card(
@@ -170,7 +172,7 @@ class GoogleSheetsSyncScreen extends StatelessWidget {
                           Text(
                             'Cloud Storage',
                             style: TextStyle(
-                              fontSize: 16, 
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: AppTheme.textPrimary,
                             ),

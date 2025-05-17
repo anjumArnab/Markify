@@ -1,4 +1,4 @@
-import 'package:cgpa_tracker/theme.dart';
+import '/theme.dart';
 import 'package:flutter/material.dart';
 
 class Homepage extends StatefulWidget {
@@ -21,7 +21,7 @@ class _HomepageState extends State<Homepage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'CGPA Tracker',
+          'Markify',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,

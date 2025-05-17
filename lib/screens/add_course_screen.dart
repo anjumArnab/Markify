@@ -1,4 +1,4 @@
-import 'package:cgpa_tracker/theme.dart';
+import '/theme.dart';
 import 'package:flutter/material.dart';
 
 class AddCourseScreen extends StatefulWidget {
