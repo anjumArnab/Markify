@@ -2,7 +2,7 @@ class AcademicRecord {
   final int? id;
   final String semester;
   final String course;
-  final double grade;
+  final String grade;
   final double creditHours;
   final double? gpa;
   final double? cgpa;
@@ -17,29 +17,39 @@ class AcademicRecord {
     this.cgpa,
   });
 
-  /// Convert JSON to AcademicRecord
   factory AcademicRecord.fromJson(Map<String, dynamic> json) {
+    // Helper function to safely convert values to double
+    double? safeToDouble(dynamic value) {
+      if (value == null) return null;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        if (value.isEmpty) return null;
+        return double.tryParse(value);
+      }
+      return null;
+    }
+
     return AcademicRecord(
-      id: json['id'],
-      semester: json['semester'] ?? '',
-      course: json['course'] ?? '',
-      grade: (json['grade'] ?? 0.0).toDouble(),
-      creditHours: (json['creditHours'] ?? 0.0).toDouble(),
-      gpa: (json['gpa'] ?? 0.0).toDouble(),
-      cgpa: (json['cgpa'] ?? 0.0).toDouble(),
+      id: json['id'] is String ? int.tryParse(json['id']) : json['id'] as int?,
+      semester: json['semester']?.toString() ?? '',
+      course: json['course']?.toString() ?? '',
+      grade: json['grade']?.toString() ?? '',
+      creditHours: safeToDouble(json['creditHours']) ?? 0.0,
+      gpa: safeToDouble(json['gpa']),
+      cgpa: safeToDouble(json['cgpa']),
     );
   }
 
-  /// Convert AcademicRecord to JSON
   Map<String, dynamic> toJson() {
     return {
-      if (id != null) 'id': id,
+      'id': id,
       'semester': semester,
       'course': course,
       'grade': grade,
       'creditHours': creditHours,
-      if (gpa != null) 'gpa': gpa,
-      if (cgpa != null) 'cgpa': cgpa,
+      'gpa': gpa,
+      'cgpa': cgpa,
     };
   }
 }
