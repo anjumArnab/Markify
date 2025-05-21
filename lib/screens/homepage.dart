@@ -11,9 +11,7 @@ class Homepage extends StatefulWidget {
 }
 
 class _HomepageState extends State<Homepage> {
-  final AcademicRecordsApi api = AcademicRecordsApi(
-      baseUrl:
-          'https://script.google.com/macros/s/AKfycbwUaq-Y1-vZbC-NmbZJ_G5BIMsmRS9qpAb0PzJYu9SRuX9hAVIRJpm6aq9qV_HeKm24/exec');
+  final AcademicRecordsApi api = AcademicRecordsApi();
 
   List<AcademicRecord> academicRecords = [];
   bool isLoading = true;
@@ -281,11 +279,11 @@ class _HomepageState extends State<Homepage> {
                             width: 32,
                             alignment: Alignment.center,
                             child: Text(
-                              course.grade as String,
+                              course.grade,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
-                                color: _getGradeColor(course.grade as String),
+                                color: _getGradeColor(course.grade),
                               ),
                             ),
                           ),
