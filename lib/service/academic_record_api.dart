@@ -1,10 +1,10 @@
 import 'dart:convert';
+import '../service/app_script_url.dart';
 import '../model/academic_record.dart';
 import 'package:http/http.dart' as http;
 
 class AcademicRecordsApi {
-  static const baseUrl =
-      'https://script.google.com/macros/s/AKfycbyRnBdO47uMghiL93rvnt1vYFSY93ijeWbyrLc36Kx-MEojRdnI9pS95kgD9Lr79zag/exec';
+  static const baseUrl = APP_SCRIPT_URL;
 
   /// GET all academic records
   Future<List<AcademicRecord>> getAllRecords() async {
