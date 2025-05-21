@@ -14,8 +14,8 @@ Markify is a lightweight Flutter app that tracks your CGPA using **Google Sheets
 
 ```javascript
 // Configuration constants
-const SHEET_ID = "16f_mD91RdaejPiUiq6jvlkGXHcv9qXx2Y-4PuZJcQeI";
-const SHEET_NAME = "Academic Records";
+const SHEET_ID = "";
+const SHEET_NAME = "";
 
 /**
  * Initializes the spreadsheet with headers if they don't exist
