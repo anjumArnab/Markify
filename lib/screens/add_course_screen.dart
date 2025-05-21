@@ -1,8 +1,15 @@
+import '../service/academic_record_api.dart';
 import '/theme.dart';
 import 'package:flutter/material.dart';
+import '../model/academic_record.dart';
 
 class AddCourseScreen extends StatefulWidget {
-  const AddCourseScreen({super.key});
+  final Function? onCourseAdded;
+
+  const AddCourseScreen({
+    super.key,
+    this.onCourseAdded,
+  });
 
   @override
   State<AddCourseScreen> createState() => _AddCourseScreenState();
@@ -11,9 +18,12 @@ class AddCourseScreen extends StatefulWidget {
 class _AddCourseScreenState extends State<AddCourseScreen> {
   String selectedGrade = 'A';
   String selectedCreditHours = '3.0';
-  String selectedSemester = '2-2';
+  String selectedSemester = '1-1';
   final TextEditingController _courseNameController =
       TextEditingController(text: 'Introduction to Computing');
+
+  bool _isLoading = false;
+  final AcademicRecordsApi _api = AcademicRecordsApi();
 
   final List<String> grades = [
     'A',
@@ -61,6 +71,78 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
         return Colors.red;
       default:
         return AppTheme.textPrimary;
+    }
+  }
+
+  // Method to create a new academic record
+  Future<void> _createRecord() async {
+    // Validate course name
+    if (_courseNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a course name'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Create a new academic record object from form data
+      final newRecord = AcademicRecord(
+        id: null, // ID will be assigned by the backend
+        semester: selectedSemester,
+        course: _courseNameController.text.trim(),
+        grade: selectedGrade,
+        creditHours: double.parse(selectedCreditHours),
+      );
+
+      // Call the API to create the record
+      await _api.createRecord(newRecord);
+
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Course added successfully!'),
+            backgroundColor: AppTheme.accentColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+
+      // Notify parent widget that a course was added (for refreshing lists)
+      if (widget.onCourseAdded != null) {
+        widget.onCourseAdded!();
+      }
+
+      // Reset form or navigate back
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add course: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      // Reset loading state
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -270,16 +352,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Handle course addition logic here
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Course added successfully!'),
-                        backgroundColor: AppTheme.accentColor,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
+                  onPressed: _isLoading ? null : _createRecord,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryColor,
                     foregroundColor: Colors.white,
@@ -288,14 +361,19 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                     ),
                     elevation: 2,
                   ),
-                  child: const Text(
-                    'Add Course',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        )
+                      : const Text(
+                          'Add Course',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
 
