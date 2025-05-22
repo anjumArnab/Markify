@@ -21,43 +21,6 @@ class GoogleSheetsSyncScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Backup to Google Sheet Section
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Backup to Google Sheet',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 8),
-                    ),
-                    child: const Text(
-                      'Sync',
-                      style: TextStyle(
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const Divider(thickness: 1),
-
             // Restore from Google Sheet Section
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -87,52 +50,6 @@ class GoogleSheetsSyncScreen extends StatelessWidget {
                       style: TextStyle(
                         color: Colors.white,
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const Divider(thickness: 1),
-
-            // Last Sync Status Section
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Last Sync Status',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Apr 16, 2025 - 14:35',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.accentColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 16,
                     ),
                   ),
                 ],
