@@ -31,6 +31,32 @@ class AcademicRecordsApi {
     }
   }
 
+  /// GET academic records filtered by semester
+  Future<List<AcademicRecord>> getRecordsBySemester(String semester) async {
+    try {
+      final Uri uri =
+          Uri.parse('$baseUrl?semester=${Uri.encodeComponent(semester)}');
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+
+        if (jsonResponse['status'] == "SUCCESS" &&
+            jsonResponse['data'] != null) {
+          return (jsonResponse['data'] as List)
+              .map((item) => AcademicRecord.fromJson(item))
+              .toList();
+        } else {
+          throw Exception(jsonResponse['message'] ?? 'Failed to load records');
+        }
+      } else {
+        throw Exception('Failed to load records: HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error connecting to the server: ${e.toString()}');
+    }
+  }
+
   /// POST create a new academic record
   Future<void> createRecord(AcademicRecord record) async {
     try {
