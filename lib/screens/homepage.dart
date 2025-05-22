@@ -57,59 +57,62 @@ class _HomepageState extends State<Homepage> {
     });
 
     try {
-      final records = await api.getAllRecords();
+      // Method 1: Fetch all records at once (your current approach)
+      await _fetchAllRecords();
 
-      if (records.isEmpty) {
-        // Handle empty records case - show default semesters with 0.00 GPA
-        setState(() {
-          academicRecords = [];
-          recordsBySemester = {};
-          semesterGPAs = {};
-          for (String semester in semesterOrder) {
-            semesterGPAs[semester] = 0.0;
-          }
-          currentCGPA = 0.0;
-          totalCredits = 0;
-          isLoading = false;
-        });
-        return;
-      }
+      // Method 2: Alternative - fetch by semester (uncomment to use this approach)
+      // await _fetchRecordsBySemester();
+    } catch (e) {
+      setState(() {
+        errorMessage = e.toString();
+        isLoading = false;
+        // Initialize empty state even on error
+        _initializeEmptyState();
+      });
+    }
+  }
 
-      // Group records by semester and calculate GPAs
-      final Map<String, List<AcademicRecord>> grouped = {};
-      Map<String, double> semesterGpaMap = {};
+  /// Method 1: Fetch all records at once (current approach)
+  Future<void> _fetchAllRecords() async {
+    final records = await api.getAllRecords();
 
-      // Initialize all semesters
-      for (String semester in semesterOrder) {
-        grouped[semester] = [];
-        semesterGpaMap[semester] = 0.0;
-      }
+    if (records.isEmpty) {
+      setState(() {
+        academicRecords = [];
+        _initializeEmptyState();
+        isLoading = false;
+      });
+      return;
+    }
 
-      double totalGradePoints = 0.0;
-      int totalCreditHours = 0;
+    _processRecords(records);
+  }
 
-      // Process each record
-      for (var record in records) {
-        String semester = _normalizeSemesterName(record.semester);
+  /// Method 2: Fetch records by semester individually
+  Future<void> _fetchRecordsBySemester() async {
+    final Map<String, List<AcademicRecord>> grouped = {};
+    Map<String, double> semesterGpaMap = {};
+    List<AcademicRecord> allRecords = [];
 
-        // Only add to known semesters
-        if (semesterOrder.contains(semester)) {
-          grouped[semester]!.add(record);
+    // Initialize all semesters
+    for (String semester in semesterOrder) {
+      grouped[semester] = [];
+      semesterGpaMap[semester] = 0.0;
+    }
 
-          // Calculate grade points for this course
-          double gradePoint = _getGradePoint(record.grade);
-          totalGradePoints += gradePoint * record.creditHours;
-          totalCreditHours += record.creditHours.toInt();
-        }
-      }
+    // Fetch records for each semester
+    for (String semester in semesterOrder) {
+      try {
+        final semesterRecords = await api.getRecordsBySemester(semester);
+        grouped[semester] = semesterRecords;
+        allRecords.addAll(semesterRecords);
 
-      // Calculate semester GPAs
-      for (String semester in semesterOrder) {
-        if (grouped[semester]!.isNotEmpty) {
+        // Calculate GPA for this semester
+        if (semesterRecords.isNotEmpty) {
           double semesterGradePoints = 0.0;
           double semesterCredits = 0.0;
 
-          for (var record in grouped[semester]!) {
+          for (var record in semesterRecords) {
             double gradePoint = _getGradePoint(record.grade);
             semesterGradePoints += gradePoint * record.creditHours;
             semesterCredits += record.creditHours;
@@ -119,48 +122,177 @@ class _HomepageState extends State<Homepage> {
             semesterGpaMap[semester] = semesterGradePoints / semesterCredits;
           }
         }
+      } catch (e) {
+        // Handle individual semester fetch errors
+        print('Error fetching records for $semester: $e');
+        grouped[semester] = [];
+        semesterGpaMap[semester] = 0.0;
       }
+    }
 
-      // Calculate overall CGPA
-      double cgpa =
-          totalCreditHours > 0 ? totalGradePoints / totalCreditHours : 0.0;
+    // Calculate overall CGPA
+    double totalGradePoints = 0.0;
+    int totalCreditHours = 0;
+
+    for (var record in allRecords) {
+      double gradePoint = _getGradePoint(record.grade);
+      totalGradePoints += gradePoint * record.creditHours;
+      totalCreditHours += record.creditHours.toInt();
+    }
+
+    double cgpa =
+        totalCreditHours > 0 ? totalGradePoints / totalCreditHours : 0.0;
+
+    setState(() {
+      academicRecords = allRecords;
+      recordsBySemester = grouped;
+      semesterGPAs = semesterGpaMap;
+      currentCGPA = cgpa;
+      totalCredits = totalCreditHours;
+      isLoading = false;
+    });
+  }
+
+  /// Process fetched records and calculate GPAs
+  void _processRecords(List<AcademicRecord> records) {
+    final Map<String, List<AcademicRecord>> grouped = {};
+    Map<String, double> semesterGpaMap = {};
+
+    // Initialize all semesters
+    for (String semester in semesterOrder) {
+      grouped[semester] = [];
+      semesterGpaMap[semester] = 0.0;
+    }
+
+    double totalGradePoints = 0.0;
+    int totalCreditHours = 0;
+
+    // Process each record
+    for (var record in records) {
+      String semester = _normalizeSemesterName(record.semester);
+
+      // Only add to known semesters
+      if (semesterOrder.contains(semester)) {
+        grouped[semester]!.add(record);
+
+        // Calculate grade points for this course
+        double gradePoint = _getGradePoint(record.grade);
+        totalGradePoints += gradePoint * record.creditHours;
+        totalCreditHours += record.creditHours.toInt();
+      }
+    }
+
+    // Calculate semester GPAs
+    for (String semester in semesterOrder) {
+      if (grouped[semester]!.isNotEmpty) {
+        double semesterGradePoints = 0.0;
+        double semesterCredits = 0.0;
+
+        for (var record in grouped[semester]!) {
+          double gradePoint = _getGradePoint(record.grade);
+          semesterGradePoints += gradePoint * record.creditHours;
+          semesterCredits += record.creditHours;
+        }
+
+        if (semesterCredits > 0) {
+          semesterGpaMap[semester] = semesterGradePoints / semesterCredits;
+        }
+      }
+    }
+
+    // Calculate overall CGPA
+    double cgpa =
+        totalCreditHours > 0 ? totalGradePoints / totalCreditHours : 0.0;
+
+    setState(() {
+      academicRecords = records;
+      recordsBySemester = grouped;
+      semesterGPAs = semesterGpaMap;
+      currentCGPA = cgpa;
+      totalCredits = totalCreditHours;
+      isLoading = false;
+    });
+  }
+
+  /// Initialize empty state for all semesters
+  void _initializeEmptyState() {
+    recordsBySemester = {};
+    semesterGPAs = {};
+    for (String semester in semesterOrder) {
+      recordsBySemester[semester] = [];
+      semesterGPAs[semester] = 0.0;
+    }
+    currentCGPA = 0.0;
+    totalCredits = 0;
+  }
+
+  /// Fetch records for a specific semester (can be called individually)
+  Future<void> fetchSemesterRecords(String semester) async {
+    try {
+      final semesterRecords = await api.getRecordsBySemester(semester);
 
       setState(() {
-        academicRecords = records;
-        recordsBySemester = grouped;
-        semesterGPAs = semesterGpaMap;
-        currentCGPA = cgpa;
-        totalCredits = totalCreditHours;
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        errorMessage = e.toString();
-        isLoading = false;
-        // Initialize empty state even on error
-        recordsBySemester = {};
-        semesterGPAs = {};
-        for (String semester in semesterOrder) {
+        recordsBySemester[semester] = semesterRecords;
+
+        // Recalculate GPA for this semester
+        if (semesterRecords.isNotEmpty) {
+          double semesterGradePoints = 0.0;
+          double semesterCredits = 0.0;
+
+          for (var record in semesterRecords) {
+            double gradePoint = _getGradePoint(record.grade);
+            semesterGradePoints += gradePoint * record.creditHours;
+            semesterCredits += record.creditHours;
+          }
+
+          if (semesterCredits > 0) {
+            semesterGPAs[semester] = semesterGradePoints / semesterCredits;
+          }
+        } else {
           semesterGPAs[semester] = 0.0;
         }
       });
+
+      // Recalculate overall CGPA
+      _recalculateOverallCGPA();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error fetching $semester records: ${e.toString()}')),
+      );
     }
+  }
+
+  /// Recalculate overall CGPA from all semester records
+  void _recalculateOverallCGPA() {
+    double totalGradePoints = 0.0;
+    int totalCreditHours = 0;
+
+    for (var semesterRecords in recordsBySemester.values) {
+      for (var record in semesterRecords) {
+        double gradePoint = _getGradePoint(record.grade);
+        totalGradePoints += gradePoint * record.creditHours;
+        totalCreditHours += record.creditHours.toInt();
+      }
+    }
+
+    setState(() {
+      currentCGPA =
+          totalCreditHours > 0 ? totalGradePoints / totalCreditHours : 0.0;
+      totalCredits = totalCreditHours;
+    });
   }
 
   // Helper method to normalize semester names
   String _normalizeSemesterName(String semesterInput) {
     if (semesterInput.isEmpty) return 'Semester 1-1';
 
-    // Remove any extra characters and normalize
     String normalized = semesterInput.trim();
 
-    // If it's already in correct format, return as is
     if (semesterOrder.contains(normalized)) {
       return normalized;
     }
 
-    // Try to extract semester info from various formats
-    // Handle cases like "1-1", "1.1", "Semester 1-1", etc.
     RegExp regExp = RegExp(r'(\d+)[-.](\d+)');
     Match? match = regExp.firstMatch(normalized);
 
@@ -170,7 +302,6 @@ class _HomepageState extends State<Homepage> {
       return 'Semester $year-$term';
     }
 
-    // Default fallback
     return 'Semester 1-1';
   }
 
@@ -345,7 +476,7 @@ class _HomepageState extends State<Homepage> {
       ),
       child: Column(
         children: [
-          // Semester Header
+          // Semester Header with refresh button
           InkWell(
             onTap: () {
               setState(() {
@@ -369,6 +500,15 @@ class _HomepageState extends State<Homepage> {
                   ),
                   Row(
                     children: [
+                      // Add refresh button for individual semester
+                      IconButton(
+                        icon: const Icon(Icons.refresh, size: 16),
+                        onPressed: () => fetchSemesterRecords(semesterName),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Refresh $semesterName',
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         'GPA: $gpa',
                         style: TextStyle(
