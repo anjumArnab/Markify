@@ -57,11 +57,8 @@ class _HomepageState extends State<Homepage> {
     });
 
     try {
-      // Method 1: Fetch all records at once (your current approach)
-      await _fetchAllRecords();
-
-      // Method 2: Alternative - fetch by semester (uncomment to use this approach)
-      // await _fetchRecordsBySemester();
+      // Use the semester-based fetching method
+      await _fetchRecordsBySemester();
     } catch (e) {
       setState(() {
         errorMessage = e.toString();
@@ -72,7 +69,7 @@ class _HomepageState extends State<Homepage> {
     }
   }
 
-  /// Method 1: Fetch all records at once (current approach)
+  /// Method 1: Fetch all records at once (alternative approach)
   Future<void> _fetchAllRecords() async {
     final records = await api.getAllRecords();
 
@@ -88,7 +85,7 @@ class _HomepageState extends State<Homepage> {
     _processRecords(records);
   }
 
-  /// Method 2: Fetch records by semester individually
+  /// Method 2: Fetch records by semester individually (PRIMARY METHOD)
   Future<void> _fetchRecordsBySemester() async {
     final Map<String, List<AcademicRecord>> grouped = {};
     Map<String, double> semesterGpaMap = {};
@@ -153,7 +150,7 @@ class _HomepageState extends State<Homepage> {
     });
   }
 
-  /// Process fetched records and calculate GPAs
+  /// Process fetched records and calculate GPAs (used by _fetchAllRecords)
   void _processRecords(List<AcademicRecord> records) {
     final Map<String, List<AcademicRecord>> grouped = {};
     Map<String, double> semesterGpaMap = {};

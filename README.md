@@ -352,3 +352,35 @@ function handleError(error, message) {
   }))
   .setMimeType(ContentService.MimeType.JSON);
 }
+
+## Google Sheet Functions
+For GPA calculation
+```
+=IF(A2="", "", LET(
+  sem, A2,
+  grades, FILTER(C$2:C, A$2:A=sem),
+  credits, FILTER(D$2:D, A$2:A=sem),
+  points, MAP(grades, LAMBDA(g,
+    SWITCH(g,
+      "A+", 4.00,
+      "A", 3.75,
+      "A-", 3.50,
+      "B+", 3.25,
+      "B", 3.00,
+      "B-", 2.75,
+      "C+", 2.50,
+      "C", 2.25,
+      "D", 2.00,
+      "F", 0,
+      0)
+  )),
+  totalPoints, SUM(MAP(points, credits, LAMBDA(p, c, p * c))),
+  totalCredits, SUM(credits),
+  IF(totalCredits = 0, "", ROUND(totalPoints / totalCredits, 2))
+))
+```
+
+For CGPA Calculation
+```
+=IF(COUNT(E2:E) = 0, 0, SUM(E2:E)/COUNT(E2:E))
+```
