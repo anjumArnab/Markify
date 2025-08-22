@@ -412,13 +412,3 @@ function handleError(error, message) {
   .setMimeType(ContentService.MimeType.JSON);
 }
 ```
-## Google Sheet Functions
-For GPA calculation
-```
-=IF(SUMIF($A$2:$A$100,A2,$D$2:$D$100)=0,"",SUMPRODUCT(($A$2:$A$100=A2)*($C$2:$C$100)*($D$2:$D$100)) / SUMIF($A$2:$A$100,A2,$D$2:$D$100))
-```
-
-For CGPA Calculation
-```
-=IFERROR(AVERAGE(UNIQUE(FILTER(E:E,ISNUMBER(E:E)))), "")
-```
