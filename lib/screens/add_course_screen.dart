@@ -16,7 +16,7 @@ class AddCourseScreen extends StatefulWidget {
 }
 
 class _AddCourseScreenState extends State<AddCourseScreen> {
-  String selectedGrade = 'A';
+  String selectedGrade = '4.0'; // Changed to numeric string
   String selectedCreditHours = '3.0';
   String selectedSemester = '1-1';
   final TextEditingController _courseNameController =
@@ -25,19 +25,21 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   bool _isLoading = false;
   final AcademicRecordsApi _api = AcademicRecordsApi();
 
-  final List<String> grades = [
-    'A',
-    'A-',
-    'B+',
-    'B',
-    'B-',
-    'C+',
-    'C',
-    'C-',
-    'D+',
-    'D',
-    'F'
+  // Updated to use numeric grade values
+  final List<Map<String, dynamic>> grades = [
+    {'letter': 'A', 'point': '4.0'},
+    {'letter': 'A-', 'point': '3.7'},
+    {'letter': 'B+', 'point': '3.3'},
+    {'letter': 'B', 'point': '3.0'},
+    {'letter': 'B-', 'point': '2.7'},
+    {'letter': 'C+', 'point': '2.3'},
+    {'letter': 'C', 'point': '2.0'},
+    {'letter': 'C-', 'point': '1.7'},
+    {'letter': 'D+', 'point': '1.3'},
+    {'letter': 'D', 'point': '1.0'},
+    {'letter': 'F', 'point': '0.0'},
   ];
+
   final List<String> creditHours = ['1.0', '1.5', '2.0', '3.0', '4.0', '5.0'];
   final List<String> semesters = [
     '1-1',
@@ -50,28 +52,23 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     '4-2'
   ];
 
-  // Helper method to get color based on grade
-  Color _getGradeColor(String grade) {
-    switch (grade) {
-      case 'A':
-      case 'A-':
-        return Colors.green;
-      case 'B+':
-      case 'B':
-      case 'B-':
-        return Colors.blue;
-      case 'C+':
-      case 'C':
-      case 'C-':
-        return Colors.orange;
-      case 'D+':
-      case 'D':
-        return Colors.deepOrange;
-      case 'F':
-        return Colors.red;
-      default:
-        return AppTheme.textPrimary;
-    }
+  // Helper method to get color based on grade point
+  Color _getGradeColor(String gradePoint) {
+    double point = double.tryParse(gradePoint) ?? 0.0;
+    if (point >= 3.7) return Colors.green;
+    if (point >= 3.0) return Colors.blue;
+    if (point >= 2.0) return Colors.orange;
+    if (point >= 1.0) return Colors.deepOrange;
+    return Colors.red;
+  }
+
+  // Get letter grade from grade point
+  String _getGradeLetter(String gradePoint) {
+    final grade = grades.firstWhere(
+      (g) => g['point'] == gradePoint,
+      orElse: () => {'letter': 'A', 'point': '4.0'},
+    );
+    return grade['letter'];
   }
 
   // Method to create a new academic record
@@ -98,18 +95,19 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
         id: null, // ID will be assigned by the backend
         semester: selectedSemester,
         course: _courseNameController.text.trim(),
-        grade: selectedGrade,
+        grade: double.parse(selectedGrade), // Now using double
         creditHours: double.parse(selectedCreditHours),
       );
 
       // Call the API to create the record
-      await _api.createRecord(newRecord);
+      final createdRecord = await _api.createRecord(newRecord);
 
       // Show success message
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Course added successfully!'),
+          SnackBar(
+            content: Text(
+                'Course added successfully! GPA: ${createdRecord.obtainedGrade?.toStringAsFixed(2) ?? "Calculating..."}'),
             backgroundColor: AppTheme.accentColor,
             behavior: SnackBarBehavior.floating,
           ),
@@ -123,7 +121,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
 
       // Reset form or navigate back
       if (context.mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, createdRecord); // Return the created record
       }
     } catch (e) {
       // Show error message
@@ -229,13 +227,13 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                             icon: const Icon(Icons.keyboard_arrow_down,
                                 color: AppTheme.primaryColor),
                             dropdownColor: AppTheme.surfaceColor,
-                            items: grades.map((String grade) {
+                            items: grades.map((Map<String, dynamic> grade) {
                               return DropdownMenuItem<String>(
-                                value: grade,
+                                value: grade['point'],
                                 child: Text(
-                                  grade,
+                                  '${grade['letter']} (${grade['point']})',
                                   style: TextStyle(
-                                    color: _getGradeColor(grade),
+                                    color: _getGradeColor(grade['point']),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -402,24 +400,28 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _courseNameController.text,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: AppTheme.textPrimary,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _courseNameController.text.isNotEmpty
+                                      ? _courseNameController.text
+                                      : 'Course Name',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.textPrimary,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                'Semester $selectedSemester',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.textSecondary,
+                                Text(
+                                  'Semester $selectedSemester',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textSecondary,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           Row(
                             children: [
@@ -432,10 +434,11 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  selectedGrade,
+                                  '${_getGradeLetter(selectedGrade)} ($selectedGrade)',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: _getGradeColor(selectedGrade),
+                                    fontSize: 12,
                                   ),
                                 ),
                               ),
@@ -460,11 +463,5 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _courseNameController.dispose();
-    super.dispose();
   }
 }

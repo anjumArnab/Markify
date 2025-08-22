@@ -1,7 +1,7 @@
-import 'package:cgpa_tracker/model/academic_record.dart';
-import 'package:cgpa_tracker/service/academic_record_api.dart';
-import '/theme.dart';
 import 'package:flutter/material.dart';
+import '../model/academic_record.dart';
+import '../service/academic_record_api.dart';
+import '/theme.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -11,24 +11,24 @@ class Homepage extends StatefulWidget {
 }
 
 class _HomepageState extends State<Homepage> {
-  final AcademicRecordsApi api = AcademicRecordsApi();
+  final AcademicRecordsApi _api = AcademicRecordsApi();
 
   List<AcademicRecord> academicRecords = [];
   bool isLoading = true;
   String? errorMessage;
-  double currentCGPA = 0.0;
-  int totalCredits = 0;
+  double? currentCGPA;
+  Map<String, double> semesterGPAs = {};
 
   // Define proper semester order and names
   final List<String> semesterOrder = [
-    'Semester 1-1',
-    'Semester 1-2',
-    'Semester 2-1',
-    'Semester 2-2',
-    'Semester 3-1',
-    'Semester 3-2',
-    'Semester 4-1',
-    'Semester 4-2',
+    '1-1',
+    '1-2',
+    '2-1',
+    '2-2',
+    '3-1',
+    '3-2',
+    '4-1',
+    '4-2',
   ];
 
   // Track which semesters are expanded
@@ -36,8 +36,6 @@ class _HomepageState extends State<Homepage> {
 
   // Group records by semester
   Map<String, List<AcademicRecord>> recordsBySemester = {};
-  // Store GPA for each semester
-  Map<String, double> semesterGPAs = {};
 
   @override
   void initState() {
@@ -45,7 +43,7 @@ class _HomepageState extends State<Homepage> {
     // Initialize expanded semesters
     for (String semester in semesterOrder) {
       expandedSemesters[semester] =
-          semester == 'Semester 1-1'; // Only first one expanded
+          semester == '1-1'; // Only first one expanded
     }
     fetchRecords();
   }
@@ -57,8 +55,24 @@ class _HomepageState extends State<Homepage> {
     });
 
     try {
-      // Use the semester-based fetching method
-      await _fetchRecordsBySemester();
+      // Fetch all records from the API (which now includes calculated values)
+      final records = await _api.getAllRecords();
+
+      // Get current CGPA from API utility method
+      final cgpa = await _api.getCurrentCGPA();
+
+      // Get semester GPAs from API utility method
+      final semesterGpaMap = await _api.getSemesterGPAs();
+
+      // Group records by semester
+      _groupRecordsBySemester(records);
+
+      setState(() {
+        academicRecords = records;
+        currentCGPA = cgpa;
+        semesterGPAs = semesterGpaMap;
+        isLoading = false;
+      });
     } catch (e) {
       setState(() {
         errorMessage = e.toString();
@@ -69,149 +83,22 @@ class _HomepageState extends State<Homepage> {
     }
   }
 
-  /// Method 1: Fetch all records at once (alternative approach)
-  Future<void> _fetchAllRecords() async {
-    final records = await api.getAllRecords();
-
-    if (records.isEmpty) {
-      setState(() {
-        academicRecords = [];
-        _initializeEmptyState();
-        isLoading = false;
-      });
-      return;
-    }
-
-    _processRecords(records);
-  }
-
-  /// Method 2: Fetch records by semester individually (PRIMARY METHOD)
-  Future<void> _fetchRecordsBySemester() async {
-    final Map<String, List<AcademicRecord>> grouped = {};
-    Map<String, double> semesterGpaMap = {};
-    List<AcademicRecord> allRecords = [];
-
+  void _groupRecordsBySemester(List<AcademicRecord> records) {
     // Initialize all semesters
+    recordsBySemester = {};
     for (String semester in semesterOrder) {
-      grouped[semester] = [];
-      semesterGpaMap[semester] = 0.0;
+      recordsBySemester[semester] = [];
     }
 
-    // Fetch records for each semester
-    for (String semester in semesterOrder) {
-      try {
-        final semesterRecords = await api.getRecordsBySemester(semester);
-        grouped[semester] = semesterRecords;
-        allRecords.addAll(semesterRecords);
-
-        // Calculate GPA for this semester
-        if (semesterRecords.isNotEmpty) {
-          double semesterGradePoints = 0.0;
-          double semesterCredits = 0.0;
-
-          for (var record in semesterRecords) {
-            double gradePoint = _getGradePoint(record.grade);
-            semesterGradePoints += gradePoint * record.creditHours;
-            semesterCredits += record.creditHours;
-          }
-
-          if (semesterCredits > 0) {
-            semesterGpaMap[semester] = semesterGradePoints / semesterCredits;
-          }
-        }
-      } catch (e) {
-        // Handle individual semester fetch errors
-        print('Error fetching records for $semester: $e');
-        grouped[semester] = [];
-        semesterGpaMap[semester] = 0.0;
-      }
-    }
-
-    // Calculate overall CGPA
-    double totalGradePoints = 0.0;
-    int totalCreditHours = 0;
-
-    for (var record in allRecords) {
-      double gradePoint = _getGradePoint(record.grade);
-      totalGradePoints += gradePoint * record.creditHours;
-      totalCreditHours += record.creditHours.toInt();
-    }
-
-    double cgpa =
-        totalCreditHours > 0 ? totalGradePoints / totalCreditHours : 0.0;
-
-    setState(() {
-      academicRecords = allRecords;
-      recordsBySemester = grouped;
-      semesterGPAs = semesterGpaMap;
-      currentCGPA = cgpa;
-      totalCredits = totalCreditHours;
-      isLoading = false;
-    });
-  }
-
-  /// Process fetched records and calculate GPAs (used by _fetchAllRecords)
-  void _processRecords(List<AcademicRecord> records) {
-    final Map<String, List<AcademicRecord>> grouped = {};
-    Map<String, double> semesterGpaMap = {};
-
-    // Initialize all semesters
-    for (String semester in semesterOrder) {
-      grouped[semester] = [];
-      semesterGpaMap[semester] = 0.0;
-    }
-
-    double totalGradePoints = 0.0;
-    int totalCreditHours = 0;
-
-    // Process each record
+    // Group records by semester
     for (var record in records) {
-      String semester = _normalizeSemesterName(record.semester);
-
-      // Only add to known semesters
+      final semester = record.semester;
       if (semesterOrder.contains(semester)) {
-        grouped[semester]!.add(record);
-
-        // Calculate grade points for this course
-        double gradePoint = _getGradePoint(record.grade);
-        totalGradePoints += gradePoint * record.creditHours;
-        totalCreditHours += record.creditHours.toInt();
+        recordsBySemester[semester]!.add(record);
       }
     }
-
-    // Calculate semester GPAs
-    for (String semester in semesterOrder) {
-      if (grouped[semester]!.isNotEmpty) {
-        double semesterGradePoints = 0.0;
-        double semesterCredits = 0.0;
-
-        for (var record in grouped[semester]!) {
-          double gradePoint = _getGradePoint(record.grade);
-          semesterGradePoints += gradePoint * record.creditHours;
-          semesterCredits += record.creditHours;
-        }
-
-        if (semesterCredits > 0) {
-          semesterGpaMap[semester] = semesterGradePoints / semesterCredits;
-        }
-      }
-    }
-
-    // Calculate overall CGPA
-    double cgpa =
-        totalCreditHours > 0 ? totalGradePoints / totalCreditHours : 0.0;
-
-    setState(() {
-      academicRecords = records;
-      recordsBySemester = grouped;
-      semesterGPAs = semesterGpaMap;
-      currentCGPA = cgpa;
-      totalCredits = totalCreditHours;
-      isLoading = false;
-    });
   }
 
-  /// Initialize empty state for all semesters
   void _initializeEmptyState() {
     recordsBySemester = {};
     semesterGPAs = {};
@@ -220,116 +107,68 @@ class _HomepageState extends State<Homepage> {
       semesterGPAs[semester] = 0.0;
     }
     currentCGPA = 0.0;
-    totalCredits = 0;
   }
 
-  /// Fetch records for a specific semester (can be called individually)
-  Future<void> fetchSemesterRecords(String semester) async {
+  Future<void> _refreshSemester(String semester) async {
     try {
-      final semesterRecords = await api.getRecordsBySemester(semester);
+      // Refresh records for specific semester
+      final semesterRecords = await _api.getRecordsBySemester(semester);
 
       setState(() {
         recordsBySemester[semester] = semesterRecords;
 
-        // Recalculate GPA for this semester
+        // Update semester GPA if records exist
         if (semesterRecords.isNotEmpty) {
-          double semesterGradePoints = 0.0;
-          double semesterCredits = 0.0;
-
-          for (var record in semesterRecords) {
-            double gradePoint = _getGradePoint(record.grade);
-            semesterGradePoints += gradePoint * record.creditHours;
-            semesterCredits += record.creditHours;
-          }
-
-          if (semesterCredits > 0) {
-            semesterGPAs[semester] = semesterGradePoints / semesterCredits;
-          }
+          // Use the calculated GPA from the first record (all records in same semester have same GPA)
+          semesterGPAs[semester] = semesterRecords.first.obtainedGrade ?? 0.0;
         } else {
           semesterGPAs[semester] = 0.0;
         }
       });
 
-      // Recalculate overall CGPA
-      _recalculateOverallCGPA();
+      // Refresh overall CGPA
+      final cgpa = await _api.getCurrentCGPA();
+      setState(() {
+        currentCGPA = cgpa;
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Error fetching $semester records: ${e.toString()}')),
+          content: Text('Error refreshing $semester: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
 
-  /// Recalculate overall CGPA from all semester records
-  void _recalculateOverallCGPA() {
-    double totalGradePoints = 0.0;
-    int totalCreditHours = 0;
-
-    for (var semesterRecords in recordsBySemester.values) {
-      for (var record in semesterRecords) {
-        double gradePoint = _getGradePoint(record.grade);
-        totalGradePoints += gradePoint * record.creditHours;
-        totalCreditHours += record.creditHours.toInt();
-      }
-    }
-
-    setState(() {
-      currentCGPA =
-          totalCreditHours > 0 ? totalGradePoints / totalCreditHours : 0.0;
-      totalCredits = totalCreditHours;
-    });
+  int _getTotalCredits() {
+    return academicRecords
+        .map((record) => record.creditHours.toInt())
+        .fold(0, (sum, credits) => sum + credits);
   }
 
-  // Helper method to normalize semester names
-  String _normalizeSemesterName(String semesterInput) {
-    if (semesterInput.isEmpty) return 'Semester 1-1';
-
-    String normalized = semesterInput.trim();
-
-    if (semesterOrder.contains(normalized)) {
-      return normalized;
-    }
-
-    RegExp regExp = RegExp(r'(\d+)[-.](\d+)');
-    Match? match = regExp.firstMatch(normalized);
-
-    if (match != null) {
-      String year = match.group(1)!;
-      String term = match.group(2)!;
-      return 'Semester $year-$term';
-    }
-
-    return 'Semester 1-1';
+  // Helper method to get letter grade from grade point
+  String _getGradeLetter(double gradePoint) {
+    if (gradePoint >= 4.0) return 'A';
+    if (gradePoint >= 3.7) return 'A-';
+    if (gradePoint >= 3.3) return 'B+';
+    if (gradePoint >= 3.0) return 'B';
+    if (gradePoint >= 2.7) return 'B-';
+    if (gradePoint >= 2.3) return 'C+';
+    if (gradePoint >= 2.0) return 'C';
+    if (gradePoint >= 1.7) return 'C-';
+    if (gradePoint >= 1.3) return 'D+';
+    if (gradePoint >= 1.0) return 'D';
+    return 'F';
   }
 
-  // Helper method to convert grade to grade point
-  double _getGradePoint(String grade) {
-    switch (grade.toUpperCase()) {
-      case 'A':
-        return 4.0;
-      case 'A-':
-        return 3.7;
-      case 'B+':
-        return 3.3;
-      case 'B':
-        return 3.0;
-      case 'B-':
-        return 2.7;
-      case 'C+':
-        return 2.3;
-      case 'C':
-        return 2.0;
-      case 'C-':
-        return 1.7;
-      case 'D+':
-        return 1.3;
-      case 'D':
-        return 1.0;
-      case 'F':
-        return 0.0;
-      default:
-        return 0.0;
-    }
+  // Helper method to get color based on grade point
+  Color _getGradeColor(double gradePoint) {
+    if (gradePoint >= 3.7) return Colors.green;
+    if (gradePoint >= 3.0) return Colors.blue;
+    if (gradePoint >= 2.0) return Colors.orange;
+    if (gradePoint >= 1.0) return Colors.deepOrange;
+    return Colors.red;
   }
 
   @override
@@ -344,6 +183,11 @@ class _HomepageState extends State<Homepage> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: fetchRecords,
+            tooltip: 'Refresh all data',
+          ),
           Container(
             margin: const EdgeInsets.only(right: 16),
             decoration: const BoxDecoration(
@@ -360,99 +204,145 @@ class _HomepageState extends State<Homepage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Error: $errorMessage'),
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red[300],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error loading data',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppTheme.textSecondary),
+                      ),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: fetchRecords,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                        ),
                         child: const Text('Retry'),
                       ),
                     ],
                   ),
                 )
-              : SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Current CGPA Section
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                  color: AppTheme.dividerColor, width: 1),
+              : RefreshIndicator(
+                  onRefresh: fetchRecords,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Current CGPA Section
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                    color: AppTheme.dividerColor, width: 1),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Current CGPA',
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      (currentCGPA ?? 0.0).toStringAsFixed(2),
+                                      style: const TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'GPA: ${(currentCGPA ?? 0.0).toStringAsFixed(2)} >',
+                                      style: const TextStyle(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Total Credits: ${_getTotalCredits()}',
+                                  style: const TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Current CGPA',
-                                style: TextStyle(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    currentCGPA.toStringAsFixed(2),
-                                    style: const TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'GPA: ${currentCGPA.toStringAsFixed(2)} >',
-                                    style: const TextStyle(
+                          const SizedBox(height: 16),
+
+                          // Semester Sections - Display all semesters in order
+                          ...semesterOrder.map(
+                            (semester) => _buildSemesterSection(
+                              semester,
+                              (semesterGPAs[semester] ?? 0.0)
+                                  .toStringAsFixed(2),
+                              recordsBySemester[semester] ?? [],
+                            ),
+                          ),
+
+                          // Show message if no records
+                          if (academicRecords.isEmpty)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32.0),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.school_outlined,
+                                      size: 64,
                                       color: AppTheme.textSecondary,
-                                      fontSize: 16,
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Total Credits: $totalCredits',
-                                style: const TextStyle(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 14,
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'No academic records found',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Add some courses to get started!',
+                                      style: TextStyle(
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Semester Sections - Display all semesters in order
-                        ...semesterOrder.map(
-                          (semester) => _buildSemesterSection(
-                            semester,
-                            semesterGPAs[semester]?.toStringAsFixed(2) ??
-                                '0.00',
-                            recordsBySemester[semester] ?? [],
-                          ),
-                        ),
-
-                        // Show message if no records
-                        if (academicRecords.isEmpty)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(32.0),
-                              child: Text(
-                                'No academic records found. Add some courses to get started!',
-                                style: TextStyle(
-                                  color: AppTheme.textSecondary,
-                                ),
-                                textAlign: TextAlign.center,
                               ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -460,9 +350,10 @@ class _HomepageState extends State<Homepage> {
   }
 
   Widget _buildSemesterSection(
-      String semesterName, String gpa, List<AcademicRecord> courses) {
-    bool isExpanded = expandedSemesters[semesterName] ?? false;
+      String semesterCode, String gpa, List<AcademicRecord> courses) {
+    bool isExpanded = expandedSemesters[semesterCode] ?? false;
     bool hasCourses = courses.isNotEmpty;
+    String semesterName = 'Semester $semesterCode';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -477,7 +368,7 @@ class _HomepageState extends State<Homepage> {
           InkWell(
             onTap: () {
               setState(() {
-                expandedSemesters[semesterName] = !isExpanded;
+                expandedSemesters[semesterCode] = !isExpanded;
               });
             },
             child: Padding(
@@ -500,7 +391,7 @@ class _HomepageState extends State<Homepage> {
                       // Add refresh button for individual semester
                       IconButton(
                         icon: const Icon(Icons.refresh, size: 16),
-                        onPressed: () => fetchSemesterRecords(semesterName),
+                        onPressed: () => _refreshSemester(semesterCode),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         tooltip: 'Refresh $semesterName',
@@ -556,40 +447,51 @@ class _HomepageState extends State<Homepage> {
                             Row(
                               children: [
                                 Container(
-                                  width: 32,
-                                  alignment: Alignment.center,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _getGradeColor(course.grade)
+                                        .withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                   child: Text(
-                                    course.grade,
+                                    '${_getGradeLetter(course.grade)} (${course.grade.toStringAsFixed(1)})',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                      fontSize: 12,
                                       color: _getGradeColor(course.grade),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
-                                Text(
-                                  course.creditHours.toString(),
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: AppTheme.textPrimary,
+                                const SizedBox(width: 12),
+                                SizedBox(
+                                  width: 30,
+                                  child: Text(
+                                    course.creditHours.toString(),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
-                                const SizedBox(width: 35),
+                                const SizedBox(width: 12),
                                 IconButton(
                                   icon: const Icon(Icons.edit,
                                       color: AppTheme.accentColor, size: 20),
                                   onPressed: () => _editRecord(course),
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
+                                  tooltip: 'Edit course',
                                 ),
-                                const SizedBox(width: 10),
+                                const SizedBox(width: 4),
                                 IconButton(
                                   icon: const Icon(Icons.delete,
-                                      color: AppTheme.textSecondary, size: 20),
+                                      color: Colors.red, size: 20),
                                   onPressed: () => _deleteRecord(course),
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
+                                  tooltip: 'Delete course',
                                 ),
                               ],
                             ),
@@ -616,8 +518,12 @@ class _HomepageState extends State<Homepage> {
 
   void _editRecord(AcademicRecord record) {
     // TODO: Implement edit functionality
+    // You can create an EditCourseScreen similar to AddCourseScreen
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit functionality coming soon!')),
+      const SnackBar(
+        content: Text('Edit functionality coming soon!'),
+        backgroundColor: AppTheme.primaryColor,
+      ),
     );
   }
 
@@ -625,8 +531,50 @@ class _HomepageState extends State<Homepage> {
     final confirmDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Record'),
-        content: Text('Are you sure you want to delete ${record.course}?'),
+        title: const Text('Delete Course'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete this course?'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    record.course,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Semester ${record.semester} • Grade: ${_getGradeLetter(record.grade)} • Credits: ${record.creditHours}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'This will recalculate your semester GPA and overall CGPA.',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -634,49 +582,56 @@ class _HomepageState extends State<Homepage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
             child: const Text('DELETE'),
           ),
         ],
       ),
     );
 
-    if (confirmDelete == true) {
+    if (confirmDelete == true && record.id != null) {
       try {
-        await api.deleteRecord(record.id!);
-        // Refresh the records after deletion
-        fetchRecords();
+        // Show loading
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Record deleted successfully')),
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text('Deleting course...'),
+              ],
+            ),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        await _api.deleteRecord(record.id!);
+
+        // Refresh the records after deletion
+        await fetchRecords();
+
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Course deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
         );
       } catch (e) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting record: ${e.toString()}')),
+          SnackBar(
+            content: Text('Error deleting course: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    }
-  }
-
-  // Helper method to get color based on grade
-  Color _getGradeColor(String grade) {
-    switch (grade.toUpperCase()) {
-      case 'A':
-      case 'A-':
-        return Colors.green;
-      case 'B+':
-      case 'B':
-      case 'B-':
-        return Colors.blue;
-      case 'C+':
-      case 'C':
-      case 'C-':
-        return Colors.orange;
-      case 'D+':
-      case 'D':
-        return Colors.deepOrange;
-      case 'F':
-        return Colors.red;
-      default:
-        return AppTheme.textPrimary;
     }
   }
 }

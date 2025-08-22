@@ -2,18 +2,19 @@ class AcademicRecord {
   final int? id;
   final String semester;
   final String course;
-  final String grade;
+  final double grade; // Made required since it's always needed for calculations
   final double creditHours;
-  final double? gpa;
+  final double?
+      obtainedGrade; // Renamed from gpa to match the scenario (semester-wise GPA)
   final double? cgpa;
 
   AcademicRecord({
     this.id,
     required this.semester,
     required this.course,
-    required this.grade,
+    required this.grade, // Now required
     required this.creditHours,
-    this.gpa,
+    this.obtainedGrade,
     this.cgpa,
   });
 
@@ -30,14 +31,23 @@ class AcademicRecord {
       return null;
     }
 
+    // Helper function for required double values
+    double safeToDoubleRequired(dynamic value) {
+      final result = safeToDouble(value);
+      return result ?? 0.0;
+    }
+
     return AcademicRecord(
       id: json['id'] is String ? int.tryParse(json['id']) : json['id'] as int?,
       semester: json['semester']?.toString() ?? '',
       course: json['course']?.toString() ?? '',
-      grade: json['grade']?.toString() ?? '',
-      creditHours: safeToDouble(json['creditHours']) ?? 0.0,
-      gpa: safeToDouble(json['gpa']),
-      cgpa: safeToDouble(json['cgpa']),
+      grade: safeToDoubleRequired(
+          json['grade']), // Required, defaults to 0.0 if null
+      creditHours: safeToDoubleRequired(
+          json['creditHours']), // Required, defaults to 0.0 if null
+      obtainedGrade:
+          safeToDouble(json['obtainedGrade']), // Can be null (calculated)
+      cgpa: safeToDouble(json['cgpa']), // Can be null (calculated)
     );
   }
 
@@ -48,8 +58,50 @@ class AcademicRecord {
       'course': course,
       'grade': grade,
       'creditHours': creditHours,
-      'gpa': gpa,
+      'obtainedGrade': obtainedGrade,
       'cgpa': cgpa,
     };
+  }
+
+  // Validation methods
+  bool isValidGrade() {
+    return grade >= 0.0 && grade <= 4.0;
+  }
+
+  bool isValidCreditHours() {
+    return creditHours > 0.0;
+  }
+
+  bool isValid() {
+    return semester.isNotEmpty &&
+        course.isNotEmpty &&
+        isValidGrade() &&
+        isValidCreditHours();
+  }
+
+  // Copy with method for easy updates
+  AcademicRecord copyWith({
+    int? id,
+    String? semester,
+    String? course,
+    double? grade,
+    double? creditHours,
+    double? obtainedGrade,
+    double? cgpa,
+  }) {
+    return AcademicRecord(
+      id: id ?? this.id,
+      semester: semester ?? this.semester,
+      course: course ?? this.course,
+      grade: grade ?? this.grade,
+      creditHours: creditHours ?? this.creditHours,
+      obtainedGrade: obtainedGrade ?? this.obtainedGrade,
+      cgpa: cgpa ?? this.cgpa,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'AcademicRecord(id: $id, semester: $semester, course: $course, grade: $grade, creditHours: $creditHours, obtainedGrade: $obtainedGrade, cgpa: $cgpa)';
   }
 }
