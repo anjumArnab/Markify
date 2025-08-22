@@ -14,8 +14,8 @@ Markify is a lightweight Flutter app that tracks your CGPA using **Google Sheets
 
 ```javascript
 // Configuration constants
-const SHEET_ID = "";
-const SHEET_NAME = "";
+const SHEET_ID = "13xvatsDfRosUn3aThl4ZrEUNmoUclCoX4w-qTf40D4w";
+const SHEET_NAME = "Academic Records";
 
 /**
  * Initializes the spreadsheet with headers if they don't exist
@@ -26,19 +26,44 @@ function initializeSpreadsheet() {
   // Check if sheet is empty or has no data
   if (sheet.getLastRow() === 0) {
     // Create header row
-    sheet.appendRow(["Semester", "Course", "Grade", "Credit Hours", "GPA", "CGPA"]);
+    sheet.appendRow(["Semester", "Course", "Grade", "Credit Hours", "Obtained Grade", "CGPA"]);
     
     // Format the header row
     sheet.getRange(1, 1, 1, 6).setFontWeight("bold");
     sheet.getRange(1, 1, 1, 6).setBackground("#f3f3f3");
     
-    // Set formulas for GPA and CGPA (these will be empty until data is added)
-    // These are placeholders as the actual formulas depend on calculation method
-    
     return true;
   }
   
   return false;
+}
+
+/**
+ * Adds formulas to the GPA and CGPA columns for a specific row
+ */
+function addFormulasToRow(sheet, rowIndex) {
+  // GPA formula for column E (Obtained Grade per semester)
+  const gpaFormula = `=IF(SUMIF($A$2:$A$100,A${rowIndex},$D$2:$D$100)=0,"",SUMPRODUCT(($A$2:$A$100=A${rowIndex})*($C$2:$C$100)*($D$2:$D$100)) / SUMIF($A$2:$A$100,A${rowIndex},$D$2:$D$100))`;
+  
+  // CGPA formula for column F
+  const cgpaFormula = `=IFERROR(AVERAGE(UNIQUE(FILTER(E:E,ISNUMBER(E:E)))), "")`;
+  
+  // Set the formulas
+  sheet.getRange(rowIndex, 5).setFormula(gpaFormula); // Column E - Obtained Grade
+  sheet.getRange(rowIndex, 6).setFormula(cgpaFormula); // Column F - CGPA
+}
+
+/**
+ * Updates all formulas in the sheet (useful after data changes)
+ */
+function updateAllFormulas(sheet) {
+  const lastRow = sheet.getLastRow();
+  
+  if (lastRow > 1) { // If there's data beyond headers
+    for (let i = 2; i <= lastRow; i++) {
+      addFormulasToRow(sheet, i);
+    }
+  }
 }
 
 /**
@@ -80,10 +105,10 @@ function doGet(e) {
         id: i, // ID based on row index
         semester: row[0]?.toString() || "",
         course: row[1]?.toString() || "",
-        grade: row[2]?.toString() || "",
+        grade: parseFloat(row[2]) || 0, // Ensure it's a number
         creditHours: parseFloat(row[3]) || 0,
-        gpa: parseFloat(row[4]) || 0,  // GPA is calculated in spreadsheet
-        cgpa: parseFloat(row[5]) || 0  // CGPA is calculated in spreadsheet
+        obtainedGrade: parseFloat(row[4]) || 0,  // Semester-wise GPA
+        cgpa: parseFloat(row[5]) || 0  // Overall CGPA
       });
     }
     
@@ -120,9 +145,9 @@ function getRecordById(id) {
       id: id,
       semester: rowData[0]?.toString() || "",
       course: rowData[1]?.toString() || "",
-      grade: rowData[2]?.toString() || "",
+      grade: parseFloat(rowData[2]) || 0,
       creditHours: parseFloat(rowData[3]) || 0,
-      gpa: parseFloat(rowData[4]) || 0,
+      obtainedGrade: parseFloat(rowData[4]) || 0,
       cgpa: parseFloat(rowData[5]) || 0
     };
     
@@ -136,6 +161,7 @@ function getRecordById(id) {
   }
 }
 
+
 /**
  * Get records filtered by semester
  */
@@ -145,21 +171,35 @@ function getRecordsBySemester(semester) {
     const values = sheet.getDataRange().getValues();
     const records = [];
     
+    // Clean the semester parameter - remove "Semester " prefix if present
+    let cleanSemester = semester;
+    if (semester.toLowerCase().startsWith('semester ')) {
+      cleanSemester = semester.substring(9); // Remove "Semester " (9 characters)
+    }
+    
+    console.log(`Searching for semester: "${cleanSemester}" (original: "${semester}")`);
+    
     // Skip header row and filter by semester
     for (let i = 1; i < values.length; i++) {
       const row = values[i];
-      if (row[0]?.toString().toLowerCase() === semester.toLowerCase()) {
+      const rowSemester = row[0]?.toString().trim();
+      
+      console.log(`Row ${i}: semester="${rowSemester}"`);
+      
+      if (rowSemester === cleanSemester) {
         records.push({
           id: i,
-          semester: row[0]?.toString() || "",
+          semester: rowSemester,
           course: row[1]?.toString() || "",
-          grade: row[2]?.toString() || "",
+          grade: parseFloat(row[2]) || 0,
           creditHours: parseFloat(row[3]) || 0,
-          gpa: parseFloat(row[4]) || 0,
+          obtainedGrade: parseFloat(row[4]) || 0,
           cgpa: parseFloat(row[5]) || 0
         });
       }
     }
+    
+    console.log(`Found ${records.length} records for semester "${cleanSemester}"`);
     
     return ContentService.createTextOutput(JSON.stringify({
       status: "SUCCESS",
@@ -199,7 +239,6 @@ function doPost(e) {
 
 /**
  * Creates a new academic record
- * Note: GPA and CGPA will be calculated by spreadsheet formulas
  */
 function createRecord(e) {
   try {
@@ -210,8 +249,13 @@ function createRecord(e) {
     
     const semester = e.parameter.semester;
     const course = e.parameter.course;
-    const grade = e.parameter.grade;
+    const grade = parseFloat(e.parameter.grade);
     const creditHours = parseFloat(e.parameter.creditHours);
+    
+    // Validate grade
+    if (isNaN(grade) || grade < 0 || grade > 4.0) {
+      return handleError(null, "Grade must be a number between 0 and 4.0");
+    }
     
     // Validate credit hours
     if (isNaN(creditHours) || creditHours <= 0) {
@@ -223,9 +267,16 @@ function createRecord(e) {
     // Initialize spreadsheet if needed
     initializeSpreadsheet();
     
-    // For GPA and CGPA columns, we leave them empty or add placeholder values
-    // These will be calculated by Google Sheet formulas
+    // Add the new row with data
     sheet.appendRow([semester, course, grade, creditHours, "", ""]);
+    
+    const newRowIndex = sheet.getLastRow();
+    
+    // Add formulas to the new row
+    addFormulasToRow(sheet, newRowIndex);
+    
+    // Update all formulas to ensure CGPA is calculated correctly
+    updateAllFormulas(sheet);
     
     return ContentService.createTextOutput(JSON.stringify({
       status: "SUCCESS",
@@ -239,8 +290,6 @@ function createRecord(e) {
 
 /**
  * Updates an existing academic record
- * Note: Only updates Semester, Course, Grade, and Credit Hours fields
- * GPA and CGPA are calculated by spreadsheet formulas
  */
 function updateRecord(e) {
   try {
@@ -271,24 +320,31 @@ function updateRecord(e) {
     
     const semester = e.parameter.semester !== undefined ? e.parameter.semester : currentValues[0];
     const course = e.parameter.course !== undefined ? e.parameter.course : currentValues[1];
-    const grade = e.parameter.grade !== undefined ? e.parameter.grade : currentValues[2];
-    let creditHours = currentValues[3];
     
+    let grade = currentValues[2];
+    if (e.parameter.grade !== undefined) {
+      grade = parseFloat(e.parameter.grade);
+      if (isNaN(grade) || grade < 0 || grade > 4.0) {
+        return handleError(null, "Grade must be a number between 0 and 4.0");
+      }
+    }
+    
+    let creditHours = currentValues[3];
     if (e.parameter.creditHours !== undefined) {
       creditHours = parseFloat(e.parameter.creditHours);
-      // Validate credit hours if provided
       if (isNaN(creditHours) || creditHours <= 0) {
         return handleError(null, "Credit Hours must be a positive number");
       }
     }
     
-    // Update only the user-editable fields (Not GPA and CGPA which are calculated)
+    // Update the user-editable fields
     sheet.getRange(rowIndex, 1).setValue(semester);
     sheet.getRange(rowIndex, 2).setValue(course);
     sheet.getRange(rowIndex, 3).setValue(grade);
     sheet.getRange(rowIndex, 4).setValue(creditHours);
     
-    // Note: No need to update GPA and CGPA as they are calculated by formulas in the spreadsheet
+    // Update formulas for this row and all rows (in case semester changed)
+    updateAllFormulas(sheet);
     
     return ContentService.createTextOutput(JSON.stringify({
       status: "SUCCESS",
@@ -329,6 +385,9 @@ function deleteRecord(e) {
     
     sheet.deleteRow(rowIndex);
     
+    // Update formulas for all remaining rows
+    updateAllFormulas(sheet);
+    
     return ContentService.createTextOutput(JSON.stringify({
       status: "SUCCESS",
       message: "Academic record deleted successfully"
@@ -352,35 +411,14 @@ function handleError(error, message) {
   }))
   .setMimeType(ContentService.MimeType.JSON);
 }
-
+```
 ## Google Sheet Functions
 For GPA calculation
 ```
-=IF(A2="", "", LET(
-  sem, A2,
-  grades, FILTER(C$2:C, A$2:A=sem),
-  credits, FILTER(D$2:D, A$2:A=sem),
-  points, MAP(grades, LAMBDA(g,
-    SWITCH(g,
-      "A+", 4.00,
-      "A", 3.75,
-      "A-", 3.50,
-      "B+", 3.25,
-      "B", 3.00,
-      "B-", 2.75,
-      "C+", 2.50,
-      "C", 2.25,
-      "D", 2.00,
-      "F", 0,
-      0)
-  )),
-  totalPoints, SUM(MAP(points, credits, LAMBDA(p, c, p * c))),
-  totalCredits, SUM(credits),
-  IF(totalCredits = 0, "", ROUND(totalPoints / totalCredits, 2))
-))
+=IF(SUMIF($A$2:$A$100,A2,$D$2:$D$100)=0,"",SUMPRODUCT(($A$2:$A$100=A2)*($C$2:$C$100)*($D$2:$D$100)) / SUMIF($A$2:$A$100,A2,$D$2:$D$100))
 ```
 
 For CGPA Calculation
 ```
-=IF(COUNT(E2:E) = 0, 0, SUM(E2:E)/COUNT(E2:E))
+=IFERROR(AVERAGE(UNIQUE(FILTER(E:E,ISNUMBER(E:E)))), "")
 ```
