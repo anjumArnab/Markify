@@ -11,7 +11,7 @@ class AcademicRecord {
     this.id,
     required this.semester,
     required this.course,
-    required this.grade, // Now required
+    required this.grade,
     required this.creditHours,
     this.obtainedGrade,
     this.cgpa,
