@@ -1,0 +1,2 @@
+C:/Users/Sakib Anjum Arnab/Desktop/markify/android/app/.cxx/RelWithDebInfo/h5s6c1z4/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/Sakib Anjum Arnab/Desktop/markify/android/app/.cxx/RelWithDebInfo/h5s6c1z4/x86_64/CMakeFiles/rebuild_cache.dir
