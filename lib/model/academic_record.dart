@@ -2,10 +2,9 @@ class AcademicRecord {
   final int? id;
   final String semester;
   final String course;
-  final double grade; // Made required since it's always needed for calculations
+  final double grade;
   final double creditHours;
-  final double?
-      obtainedGrade; // Renamed from gpa to match the scenario (semester-wise GPA)
+  final double? obtainedGrade;
   final double? cgpa;
 
   AcademicRecord({
@@ -77,31 +76,5 @@ class AcademicRecord {
         course.isNotEmpty &&
         isValidGrade() &&
         isValidCreditHours();
-  }
-
-  // Copy with method for easy updates
-  AcademicRecord copyWith({
-    int? id,
-    String? semester,
-    String? course,
-    double? grade,
-    double? creditHours,
-    double? obtainedGrade,
-    double? cgpa,
-  }) {
-    return AcademicRecord(
-      id: id ?? this.id,
-      semester: semester ?? this.semester,
-      course: course ?? this.course,
-      grade: grade ?? this.grade,
-      creditHours: creditHours ?? this.creditHours,
-      obtainedGrade: obtainedGrade ?? this.obtainedGrade,
-      cgpa: cgpa ?? this.cgpa,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'AcademicRecord(id: $id, semester: $semester, course: $course, grade: $grade, creditHours: $creditHours, obtainedGrade: $obtainedGrade, cgpa: $cgpa)';
   }
 }
