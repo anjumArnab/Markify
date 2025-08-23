@@ -33,18 +33,16 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   // Track if we're in edit mode
   bool get isEditMode => widget.editingRecord != null;
 
-  // Updated to use numeric grade values
   final List<Map<String, dynamic>> grades = [
-    {'letter': 'A', 'point': '4.0'},
-    {'letter': 'A-', 'point': '3.7'},
-    {'letter': 'B+', 'point': '3.3'},
-    {'letter': 'B', 'point': '3.0'},
-    {'letter': 'B-', 'point': '2.7'},
-    {'letter': 'C+', 'point': '2.3'},
-    {'letter': 'C', 'point': '2.0'},
-    {'letter': 'C-', 'point': '1.7'},
-    {'letter': 'D+', 'point': '1.3'},
-    {'letter': 'D', 'point': '1.0'},
+    {'letter': 'A+', 'point': '4.0'},
+    {'letter': 'A', 'point': '3.75'},
+    {'letter': 'A-', 'point': '3.50'},
+    {'letter': 'B+', 'point': '3.25'},
+    {'letter': 'B', 'point': '3.00'},
+    {'letter': 'B-', 'point': '2.75'},
+    {'letter': 'C+', 'point': '2.50'},
+    {'letter': 'C', 'point': '2.25'},
+    {'letter': 'D', 'point': '2.00'},
     {'letter': 'F', 'point': '0.0'},
   ];
 
