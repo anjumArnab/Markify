@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import '../service/academic_record_api.dart';
 import '/theme.dart';
 import 'package:flutter/material.dart';
@@ -5,10 +7,14 @@ import '../model/academic_record.dart';
 
 class AddCourseScreen extends StatefulWidget {
   final Function? onCourseAdded;
+  final Function? onCourseUpdated;
+  final AcademicRecord? editingRecord;
 
   const AddCourseScreen({
     super.key,
     this.onCourseAdded,
+    this.onCourseUpdated,
+    this.editingRecord, // Pass record when editing
   });
 
   @override
@@ -16,14 +22,16 @@ class AddCourseScreen extends StatefulWidget {
 }
 
 class _AddCourseScreenState extends State<AddCourseScreen> {
-  String selectedGrade = '4.0'; // Changed to numeric string
+  String selectedGrade = '4.0';
   String selectedCreditHours = '3.0';
   String selectedSemester = '1-1';
-  final TextEditingController _courseNameController =
-      TextEditingController(text: 'Introduction to Computing');
+  final TextEditingController _courseNameController = TextEditingController();
 
   bool _isLoading = false;
   final AcademicRecordsApi _api = AcademicRecordsApi();
+
+  // Track if we're in edit mode
+  bool get isEditMode => widget.editingRecord != null;
 
   // Updated to use numeric grade values
   final List<Map<String, dynamic>> grades = [
@@ -52,6 +60,45 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     '4-2'
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _initializeFormData();
+  }
+
+  /// Initialize form with existing data if editing
+  void _initializeFormData() {
+    if (isEditMode && widget.editingRecord != null) {
+      final record = widget.editingRecord!;
+
+      // Set form values from existing record
+      _courseNameController.text = record.course;
+      selectedGrade = record.grade.toStringAsFixed(1);
+      selectedCreditHours = record.creditHours.toStringAsFixed(1);
+      selectedSemester = record.semester;
+
+      // Ensure the selected values exist in our lists
+      if (!grades.any((g) => g['point'] == selectedGrade)) {
+        selectedGrade = '4.0'; // Default if not found
+      }
+      if (!creditHours.contains(selectedCreditHours)) {
+        selectedCreditHours = '3.0'; // Default if not found
+      }
+      if (!semesters.contains(selectedSemester)) {
+        selectedSemester = '1-1'; // Default if not found
+      }
+    } else {
+      // Default values for new course
+      _courseNameController.text = 'Introduction to Computing';
+    }
+  }
+
+  @override
+  void dispose() {
+    _courseNameController.dispose();
+    super.dispose();
+  }
+
   // Helper method to get color based on grade point
   Color _getGradeColor(String gradePoint) {
     double point = double.tryParse(gradePoint) ?? 0.0;
@@ -71,17 +118,11 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     return grade['letter'];
   }
 
-  // Method to create a new academic record
-  Future<void> _createRecord() async {
+  /// Method to create or update a record
+  Future<void> _saveRecord() async {
     // Validate course name
     if (_courseNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a course name'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showErrorSnackBar('Please enter a course name');
       return;
     }
 
@@ -90,12 +131,34 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     });
 
     try {
+      if (isEditMode) {
+        // Update existing record
+        await _updateRecord();
+      } else {
+        // Create new record
+        await _createRecord();
+      }
+    } catch (e) {
+      // Error handling is done in individual methods
+      print('Save record error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Create a new academic record
+  Future<void> _createRecord() async {
+    try {
       // Create a new academic record object from form data
       final newRecord = AcademicRecord(
         id: null, // ID will be assigned by the backend
         semester: selectedSemester,
         course: _courseNameController.text.trim(),
-        grade: double.parse(selectedGrade), // Now using double
+        grade: double.parse(selectedGrade),
         creditHours: double.parse(selectedCreditHours),
       );
 
@@ -103,7 +166,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
       final createdRecord = await _api.createRecord(newRecord);
 
       // Show success message
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -114,33 +177,79 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
         );
       }
 
-      // Notify parent widget that a course was added (for refreshing lists)
+      // Notify parent widget that a course was added
       if (widget.onCourseAdded != null) {
         widget.onCourseAdded!();
       }
 
-      // Reset form or navigate back
-      if (context.mounted) {
-        Navigator.pop(context, createdRecord); // Return the created record
+      // Navigate back with the created record
+      if (mounted) {
+        Navigator.pop(context, createdRecord);
       }
     } catch (e) {
-      // Show error message
-      if (context.mounted) {
+      _showErrorSnackBar('Failed to add course: ${e.toString()}');
+    }
+  }
+
+  /// Update existing academic record
+  Future<void> _updateRecord() async {
+    if (widget.editingRecord?.id == null) {
+      _showErrorSnackBar('Cannot update: Invalid record ID');
+      return;
+    }
+
+    try {
+      // Create updated record object
+      final updatedRecord = AcademicRecord(
+        id: widget.editingRecord!.id,
+        semester: selectedSemester,
+        course: _courseNameController.text.trim(),
+        grade: double.parse(selectedGrade),
+        creditHours: double.parse(selectedCreditHours),
+        // Keep existing calculated values (they'll be recalculated by backend)
+        obtainedGrade: widget.editingRecord!.obtainedGrade,
+        cgpa: widget.editingRecord!.cgpa,
+      );
+
+      // Call the API to update the record
+      final result = await _api.updateRecord(updatedRecord);
+
+      // Show success message
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to add course: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(
+                'Course updated successfully! New GPA: ${result.obtainedGrade?.toStringAsFixed(2) ?? "Calculating..."}'),
+            backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
-    } finally {
-      // Reset loading state
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+
+      // Notify parent widget that a course was updated
+      if (widget.onCourseUpdated != null) {
+        widget.onCourseUpdated!();
       }
+
+      // Navigate back with the updated record
+      if (mounted) {
+        Navigator.pop(context, result);
+      }
+    } catch (e) {
+      _showErrorSnackBar('Failed to update course: ${e.toString()}');
+    }
+  }
+
+  /// Helper method to show error messages
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -148,14 +257,13 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Add Course',
-          style: TextStyle(
+        title: Text(
+          isEditMode ? 'Edit Course' : 'Add Course',
+          style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
-        centerTitle: false,
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -345,14 +453,15 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Add Course Button
+              // Save Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _createRecord,
+                  onPressed: _isLoading ? null : _saveRecord,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
+                    backgroundColor:
+                        isEditMode ? Colors.orange : AppTheme.primaryColor,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -364,9 +473,9 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                           valueColor:
                               AlwaysStoppedAnimation<Color>(Colors.white),
                         )
-                      : const Text(
-                          'Add Course',
-                          style: TextStyle(
+                      : Text(
+                          isEditMode ? 'Update Course' : 'Add Course',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -375,6 +484,8 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                 ),
               ),
 
+              // Cancel button for edit mode
+              if (isEditMode) const SizedBox(height: 12),
               // Preview Section
               const SizedBox(height: 24),
               Card(
@@ -388,13 +499,39 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Course Preview',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            isEditMode
+                                ? 'Updated Course Preview'
+                                : 'Course Preview',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                          if (isEditMode)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'EDITING',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade700,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -420,6 +557,15 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                                     color: AppTheme.textSecondary,
                                   ),
                                 ),
+                                if (isEditMode && widget.editingRecord != null)
+                                  Text(
+                                    'ID: ${widget.editingRecord!.id}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),

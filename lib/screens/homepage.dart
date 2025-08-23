@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../model/academic_record.dart';
 import '../service/academic_record_api.dart';
+import '../widgets/semester_section.dart';
+import '../screens/add_course_screen.dart'; // Make sure this import exists
 import '/theme.dart';
 
 class Homepage extends StatefulWidget {
@@ -58,22 +60,29 @@ class _HomepageState extends State<Homepage> {
       // Fetch all records from the API (which now includes calculated values)
       final records = await _api.getAllRecords();
 
-      // Get current CGPA from API utility method
-      final cgpa = await _api.getCurrentCGPA();
+      // Debug: Print fetched records
+      print('Fetched ${records.length} records:');
+      for (var record in records) {
+        print(
+            '${record.semester} - ${record.course} - ${record.grade} - ${record.creditHours} - OG: ${record.obtainedGrade} - CGPA: ${record.cgpa}');
+      }
 
-      // Get semester GPAs from API utility method
-      final semesterGpaMap = await _api.getSemesterGPAs();
+      // Get current CGPA from the first record (all records should have same CGPA)
+      double? cgpa;
+      if (records.isNotEmpty) {
+        cgpa = records.first.cgpa;
+      }
 
-      // Group records by semester
+      // Group records by semester and extract semester GPAs
       _groupRecordsBySemester(records);
 
       setState(() {
         academicRecords = records;
         currentCGPA = cgpa;
-        semesterGPAs = semesterGpaMap;
         isLoading = false;
       });
     } catch (e) {
+      print('Error fetching records: $e');
       setState(() {
         errorMessage = e.toString();
         isLoading = false;
@@ -84,19 +93,49 @@ class _HomepageState extends State<Homepage> {
   }
 
   void _groupRecordsBySemester(List<AcademicRecord> records) {
-    // Initialize all semesters
+    // Initialize all semesters with empty lists
     recordsBySemester = {};
+    semesterGPAs = {};
+
     for (String semester in semesterOrder) {
       recordsBySemester[semester] = [];
+      semesterGPAs[semester] = 0.0;
     }
 
     // Group records by semester
     for (var record in records) {
       final semester = record.semester;
+
+      // Add to predefined semesters
       if (semesterOrder.contains(semester)) {
         recordsBySemester[semester]!.add(record);
+        // Set the semester GPA (obtained grade) from the record
+        if (record.obtainedGrade != null && record.obtainedGrade! > 0) {
+          semesterGPAs[semester] = record.obtainedGrade!;
+        }
+      } else {
+        // Handle semesters not in the predefined list
+        if (!recordsBySemester.containsKey(semester)) {
+          recordsBySemester[semester] = [];
+          semesterGPAs[semester] = 0.0;
+          expandedSemesters[semester] = false;
+        }
+        recordsBySemester[semester]!.add(record);
+        if (record.obtainedGrade != null && record.obtainedGrade! > 0) {
+          semesterGPAs[semester] = record.obtainedGrade!;
+        }
       }
     }
+
+    // Debug: Print grouped records
+    print('Grouped records by semester:');
+    recordsBySemester.forEach((semester, records) {
+      print(
+          '$semester: ${records.length} courses, GPA: ${semesterGPAs[semester]}');
+      for (var record in records) {
+        print('  - ${record.course}');
+      }
+    });
   }
 
   void _initializeEmptyState() {
@@ -109,66 +148,194 @@ class _HomepageState extends State<Homepage> {
     currentCGPA = 0.0;
   }
 
-  Future<void> _refreshSemester(String semester) async {
-    try {
-      // Refresh records for specific semester
-      final semesterRecords = await _api.getRecordsBySemester(semester);
-
-      setState(() {
-        recordsBySemester[semester] = semesterRecords;
-
-        // Update semester GPA if records exist
-        if (semesterRecords.isNotEmpty) {
-          // Use the calculated GPA from the first record (all records in same semester have same GPA)
-          semesterGPAs[semester] = semesterRecords.first.obtainedGrade ?? 0.0;
-        } else {
-          semesterGPAs[semester] = 0.0;
-        }
-      });
-
-      // Refresh overall CGPA
-      final cgpa = await _api.getCurrentCGPA();
-      setState(() {
-        currentCGPA = cgpa;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error refreshing $semester: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   int _getTotalCredits() {
     return academicRecords
         .map((record) => record.creditHours.toInt())
         .fold(0, (sum, credits) => sum + credits);
   }
 
-  // Helper method to get letter grade from grade point
-  String _getGradeLetter(double gradePoint) {
-    if (gradePoint >= 4.0) return 'A';
-    if (gradePoint >= 3.7) return 'A-';
-    if (gradePoint >= 3.3) return 'B+';
-    if (gradePoint >= 3.0) return 'B';
-    if (gradePoint >= 2.7) return 'B-';
-    if (gradePoint >= 2.3) return 'C+';
-    if (gradePoint >= 2.0) return 'C';
-    if (gradePoint >= 1.7) return 'C-';
-    if (gradePoint >= 1.3) return 'D+';
-    if (gradePoint >= 1.0) return 'D';
-    return 'F';
+  // Helper method to get all semesters in proper order
+  List<String> getAllSemestersInOrder() {
+    Set<String> allSemesters = recordsBySemester.keys.toSet();
+    List<String> result = [];
+
+    // Add predefined semesters first
+    for (String semester in semesterOrder) {
+      if (allSemesters.contains(semester)) {
+        result.add(semester);
+      }
+    }
+
+    // Add any additional semesters not in predefined list
+    for (String semester in allSemesters) {
+      if (!semesterOrder.contains(semester)) {
+        result.add(semester);
+      }
+    }
+
+    return result;
   }
 
-  // Helper method to get color based on grade point
-  Color _getGradeColor(double gradePoint) {
-    if (gradePoint >= 3.7) return Colors.green;
-    if (gradePoint >= 3.0) return Colors.blue;
-    if (gradePoint >= 2.0) return Colors.orange;
-    if (gradePoint >= 1.0) return Colors.deepOrange;
-    return Colors.red;
+  /// Navigate to AddCourseScreen in edit mode
+  void _editRecord(AcademicRecord record) async {
+    try {
+      // Show loading snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Loading course details...'),
+          duration: Duration(milliseconds: 500),
+        ),
+      );
+
+      // Navigate to AddCourseScreen with the record to edit
+      final result = await Navigator.push<AcademicRecord>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AddCourseScreen(
+            editingRecord: record, // Pass the record to edit
+            onCourseUpdated: () {
+              // Callback when course is updated
+              fetchRecords(); // Refresh the data
+            },
+          ),
+        ),
+      );
+
+      // Hide loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // If result is returned (course was updated), refresh the data
+      if (result != null) {
+        await fetchRecords();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Course updated successfully!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Hide loading snackbar and show error
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading course: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Delete a record with confirmation
+  void _deleteRecord(AcademicRecord record) async {
+    // Validate record ID
+    if (record.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot delete: Invalid record ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Deleting course...'),
+            ],
+          ),
+          duration: Duration(
+              seconds: 30), // Long duration, will be dismissed manually
+        ),
+      );
+
+      // Call API to delete the record
+      await _api.deleteRecord(record.id!);
+
+      // Hide loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Refresh the records after successful deletion
+      await fetchRecords();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${record.course} deleted successfully'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: 'UNDO',
+              textColor: Colors.white,
+              onPressed: () {
+                // TODO: Implement undo functionality if needed
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Undo feature coming soon!'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // Hide loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Failed to delete ${record.course}'),
+                const SizedBox(height: 4),
+                Text(
+                  'Error: ${e.toString()}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'RETRY',
+              textColor: Colors.white,
+              onPressed: () => _deleteRecord(record), // Retry deletion
+            ),
+          ),
+        );
+      }
+
+      // Log error for debugging
+      print('Delete error: $e');
+    }
   }
 
   @override
@@ -298,13 +465,23 @@ class _HomepageState extends State<Homepage> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Semester Sections - Display all semesters in order
-                          ...semesterOrder.map(
-                            (semester) => _buildSemesterSection(
-                              semester,
-                              (semesterGPAs[semester] ?? 0.0)
+                          // Semester Sections using SemesterSection widget
+                          ...getAllSemestersInOrder().map(
+                            (semester) => SemesterSection(
+                              semesterCode: semester,
+                              gpa: (semesterGPAs[semester] ?? 0.0)
                                   .toStringAsFixed(2),
-                              recordsBySemester[semester] ?? [],
+                              courses: recordsBySemester[semester] ?? [],
+                              isExpanded: expandedSemesters[semester] ?? false,
+                              onToggleExpanded: (semesterCode) {
+                                setState(() {
+                                  expandedSemesters[semesterCode] =
+                                      !(expandedSemesters[semesterCode] ??
+                                          false);
+                                });
+                              },
+                              onEditRecord: _editRecord,
+                              onDeleteRecord: _deleteRecord,
                             ),
                           ),
 
@@ -347,291 +524,5 @@ class _HomepageState extends State<Homepage> {
                   ),
                 ),
     );
-  }
-
-  Widget _buildSemesterSection(
-      String semesterCode, String gpa, List<AcademicRecord> courses) {
-    bool isExpanded = expandedSemesters[semesterCode] ?? false;
-    bool hasCourses = courses.isNotEmpty;
-    String semesterName = 'Semester $semesterCode';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppTheme.dividerColor, width: 1),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Semester Header with refresh button
-          InkWell(
-            onTap: () {
-              setState(() {
-                expandedSemesters[semesterCode] = !isExpanded;
-              });
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    semesterName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: hasCourses
-                          ? AppTheme.textPrimary
-                          : AppTheme.textSecondary,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      // Add refresh button for individual semester
-                      IconButton(
-                        icon: const Icon(Icons.refresh, size: 16),
-                        onPressed: () => _refreshSemester(semesterCode),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: 'Refresh $semesterName',
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'GPA: $gpa',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: hasCourses
-                              ? AppTheme.textPrimary
-                              : AppTheme.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        isExpanded
-                            ? Icons.keyboard_arrow_down
-                            : Icons.keyboard_arrow_right,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Course List (only shown if expanded)
-          if (isExpanded)
-            hasCourses
-                ? ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: courses.length,
-                    itemBuilder: (context, index) {
-                      final course = courses[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                course.course,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: _getGradeColor(course.grade)
-                                        .withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '${_getGradeLetter(course.grade)} (${course.grade.toStringAsFixed(1)})',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                      color: _getGradeColor(course.grade),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                SizedBox(
-                                  width: 30,
-                                  child: Text(
-                                    course.creditHours.toString(),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      color: AppTheme.textPrimary,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                IconButton(
-                                  icon: const Icon(Icons.edit,
-                                      color: AppTheme.accentColor, size: 20),
-                                  onPressed: () => _editRecord(course),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  tooltip: 'Edit course',
-                                ),
-                                const SizedBox(width: 4),
-                                IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red, size: 20),
-                                  onPressed: () => _deleteRecord(course),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  tooltip: 'Delete course',
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  )
-                : const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16.0),
-                    child: Text(
-                      'No courses added yet',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  void _editRecord(AcademicRecord record) {
-    // TODO: Implement edit functionality
-    // You can create an EditCourseScreen similar to AddCourseScreen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Edit functionality coming soon!'),
-        backgroundColor: AppTheme.primaryColor,
-      ),
-    );
-  }
-
-  void _deleteRecord(AcademicRecord record) async {
-    final confirmDelete = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Course'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Are you sure you want to delete this course?'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    record.course,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Semester ${record.semester} • Grade: ${_getGradeLetter(record.grade)} • Credits: ${record.creditHours}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'This will recalculate your semester GPA and overall CGPA.',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('CANCEL'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('DELETE'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmDelete == true && record.id != null) {
-      try {
-        // Show loading
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 12),
-                Text('Deleting course...'),
-              ],
-            ),
-            duration: Duration(seconds: 2),
-          ),
-        );
-
-        await _api.deleteRecord(record.id!);
-
-        // Refresh the records after deletion
-        await fetchRecords();
-
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Course deleted successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error deleting course: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 }
