@@ -14,8 +14,62 @@ Markify is a lightweight Flutter app that tracks your CGPA using **Google Sheets
 
 ```javascript
 // Configuration constants
-const SHEET_ID = "";
+const SHEET_ID = "13xvatsDfRosUn3aThl4ZrEUNmoUclCoX4w-qTf40D4w";
 const SHEET_NAME = "Academic Records";
+
+/**
+ * Helper function to convert date to semester format
+ * Converts dates like "1/1/2025" or Date objects to "1-1" format
+ */
+function formatSemesterFromDate(dateValue) {
+  if (!dateValue) return "";
+  
+  let month, day;
+  
+  if (dateValue instanceof Date) {
+    // It's a Date object
+    month = dateValue.getMonth() + 1; // getMonth() returns 0-11
+    day = dateValue.getDate();
+  } else if (typeof dateValue === 'string') {
+    // It might be a date string like "1/1/2025" or already "1-1"
+    if (dateValue.includes('/')) {
+      const parts = dateValue.split('/');
+      month = parseInt(parts[0]);
+      day = parseInt(parts[1]);
+    } else if (dateValue.includes('-')) {
+      // Already in correct format
+      return dateValue;
+    } else {
+      // Unknown format, return as is
+      return dateValue.toString();
+    }
+  } else {
+    // Try to convert to string
+    return dateValue.toString();
+  }
+  
+  // Convert to semester format (e.g., 1/1 -> 1-1, 1/2 -> 1-2)
+  return `${month}-${day}`;
+}
+
+/**
+ * Helper function to convert semester format to date for Google Sheets
+ * Converts "1-1" to a date that Google Sheets will recognize
+ */
+function semesterToDate(semester) {
+  if (!semester || typeof semester !== 'string') return semester;
+  
+  const parts = semester.split('-');
+  if (parts.length === 2) {
+    const month = parseInt(parts[0]);
+    const day = parseInt(parts[1]);
+    // Create a date in current year for consistency
+    const currentYear = new Date().getFullYear();
+    return new Date(currentYear, month - 1, day); // month - 1 because Date months are 0-indexed
+  }
+  
+  return semester;
+}
 
 /**
  * Initializes the spreadsheet with headers if they don't exist
@@ -32,7 +86,16 @@ function initializeSpreadsheet() {
     sheet.getRange(1, 1, 1, 6).setFontWeight("bold");
     sheet.getRange(1, 1, 1, 6).setBackground("#f3f3f3");
     
+    // Set the Semester column (Column A) to TEXT format to prevent date conversion
+    const lastRow = sheet.getLastRow();
+    const range = sheet.getRange(2, 1, sheet.getMaxRows() - 1, 1); // Column A from row 2 onwards
+    range.setNumberFormat("@"); // "@" means text format
+    
     return true;
+  } else {
+    // Ensure Semester column is formatted as text
+    const range = sheet.getRange(2, 1, sheet.getMaxRows() - 1, 1);
+    range.setNumberFormat("@");
   }
   
   return false;
@@ -101,9 +164,16 @@ function doGet(e) {
     // Skip header row and process data
     for (let i = 1; i < values.length; i++) {
       const row = values[i];
+      
+      // Convert semester from date format to text format
+      const semesterValue = formatSemesterFromDate(row[0]);
+      
+      // Debug logging
+      console.log(`Row ${i}: Original semester value: ${row[0]}, Formatted: ${semesterValue}`);
+      
       records.push({
         id: i, // ID based on row index
-        semester: row[0]?.toString() || "",
+        semester: semesterValue, // Use formatted semester
         course: row[1]?.toString() || "",
         grade: parseFloat(row[2]) || 0, // Ensure it's a number
         creditHours: parseFloat(row[3]) || 0,
@@ -143,7 +213,7 @@ function getRecordById(id) {
     
     const record = {
       id: id,
-      semester: rowData[0]?.toString() || "",
+      semester: formatSemesterFromDate(rowData[0]), // Format semester
       course: rowData[1]?.toString() || "",
       grade: parseFloat(rowData[2]) || 0,
       creditHours: parseFloat(rowData[3]) || 0,
@@ -160,7 +230,6 @@ function getRecordById(id) {
     return handleError(error, "Error retrieving record");
   }
 }
-
 
 /**
  * Get records filtered by semester
@@ -182,9 +251,9 @@ function getRecordsBySemester(semester) {
     // Skip header row and filter by semester
     for (let i = 1; i < values.length; i++) {
       const row = values[i];
-      const rowSemester = row[0]?.toString().trim();
+      const rowSemester = formatSemesterFromDate(row[0]); // Format semester from date
       
-      console.log(`Row ${i}: semester="${rowSemester}"`);
+      console.log(`Row ${i}: original="${row[0]}", formatted="${rowSemester}"`);
       
       if (rowSemester === cleanSemester) {
         records.push({
@@ -267,10 +336,14 @@ function createRecord(e) {
     // Initialize spreadsheet if needed
     initializeSpreadsheet();
     
-    // Add the new row with data
+    // Add the new row with data - store semester as text to prevent date conversion
     sheet.appendRow([semester, course, grade, creditHours, "", ""]);
     
     const newRowIndex = sheet.getLastRow();
+    
+    // Ensure the semester cell is formatted as text
+    sheet.getRange(newRowIndex, 1).setNumberFormat("@");
+    sheet.getRange(newRowIndex, 1).setValue(semester); // Re-set as text
     
     // Add formulas to the new row
     addFormulasToRow(sheet, newRowIndex);
@@ -318,7 +391,7 @@ function updateRecord(e) {
     // Get current values to update only provided fields
     const currentValues = sheet.getRange(rowIndex, 1, 1, 4).getValues()[0];
     
-    const semester = e.parameter.semester !== undefined ? e.parameter.semester : currentValues[0];
+    const semester = e.parameter.semester !== undefined ? e.parameter.semester : formatSemesterFromDate(currentValues[0]);
     const course = e.parameter.course !== undefined ? e.parameter.course : currentValues[1];
     
     let grade = currentValues[2];
@@ -338,6 +411,7 @@ function updateRecord(e) {
     }
     
     // Update the user-editable fields
+    sheet.getRange(rowIndex, 1).setNumberFormat("@"); // Format as text first
     sheet.getRange(rowIndex, 1).setValue(semester);
     sheet.getRange(rowIndex, 2).setValue(course);
     sheet.getRange(rowIndex, 3).setValue(grade);
@@ -410,5 +484,38 @@ function handleError(error, message) {
     details: error ? error.toString() : null
   }))
   .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Utility function to fix existing date-formatted semesters
+ * Run this once to convert existing dates back to semester format
+ */
+function fixExistingSemesters() {
+  const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+  const lastRow = sheet.getLastRow();
+  
+  if (lastRow <= 1) return; // No data to fix
+  
+  // Get all data in column A (semester column)
+  const semesterRange = sheet.getRange(2, 1, lastRow - 1, 1);
+  const semesterValues = semesterRange.getValues();
+  
+  // Convert each semester value
+  for (let i = 0; i < semesterValues.length; i++) {
+    const originalValue = semesterValues[i][0];
+    const convertedValue = formatSemesterFromDate(originalValue);
+    
+    if (originalValue !== convertedValue) {
+      console.log(`Row ${i + 2}: Converting "${originalValue}" to "${convertedValue}"`);
+      const cell = sheet.getRange(i + 2, 1);
+      cell.setNumberFormat("@"); // Set as text
+      cell.setValue(convertedValue);
+    }
+  }
+  
+  // Update all formulas after fixing
+  updateAllFormulas(sheet);
+  
+  console.log('Semester conversion completed');
 }
 ```
