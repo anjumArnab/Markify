@@ -1,5 +1,5 @@
 import 'dart:convert';
-import '../service/app_script_url.dart';
+import '../app_script_url.dart';
 import '../model/academic_record.dart';
 import 'package:http/http.dart' as http;
 
