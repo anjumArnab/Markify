@@ -1,19 +1,16 @@
 // ignore_for_file: deprecated_member_use
 
-import '../service/academic_record_api.dart';
-import '/theme.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../model/academic_record.dart';
+import '../provider/academic_records_provider.dart';
+import '/theme.dart';
 
 class AddCourseScreen extends StatefulWidget {
-  final Function? onCourseAdded;
-  final Function? onCourseUpdated;
   final AcademicRecord? editingRecord;
 
   const AddCourseScreen({
     super.key,
-    this.onCourseAdded,
-    this.onCourseUpdated,
     this.editingRecord, // Pass record when editing
   });
 
@@ -26,9 +23,6 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   String selectedCreditHours = '3.0';
   String selectedSemester = '1-1';
   final TextEditingController _courseNameController = TextEditingController();
-
-  bool _isLoading = false;
-  final AcademicRecordsApi _api = AcademicRecordsApi();
 
   // Track if we're in edit mode
   bool get isEditMode => widget.editingRecord != null;
@@ -120,131 +114,62 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   Future<void> _saveRecord() async {
     // Validate course name
     if (_courseNameController.text.trim().isEmpty) {
-      _showErrorSnackBar('Please enter a course name');
+      _showSnackBar('Please enter a course name', Colors.red);
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    final provider =
+        Provider.of<AcademicRecordsProvider>(context, listen: false);
 
     try {
+      bool success;
+      String successMessage;
+
       if (isEditMode) {
         // Update existing record
-        await _updateRecord();
+        final updatedRecord = AcademicRecord(
+          id: widget.editingRecord!.id,
+          semester: selectedSemester,
+          course: _courseNameController.text.trim(),
+          grade: double.parse(selectedGrade),
+          creditHours: double.parse(selectedCreditHours),
+        );
+
+        success = await provider.updateRecord(updatedRecord);
+        successMessage = 'Course updated successfully!';
       } else {
         // Create new record
-        await _createRecord();
-      }
-    } catch (e) {
-      // Error handling is done in individual methods
-      print('Save record error: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  /// Create a new academic record
-  Future<void> _createRecord() async {
-    try {
-      // Create a new academic record object from form data
-      final newRecord = AcademicRecord(
-        id: null, // ID will be assigned by the backend
-        semester: selectedSemester,
-        course: _courseNameController.text.trim(),
-        grade: double.parse(selectedGrade),
-        creditHours: double.parse(selectedCreditHours),
-      );
-
-      // Call the API to create the record
-      final createdRecord = await _api.createRecord(newRecord);
-
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Course added successfully! GPA: ${createdRecord.obtainedGrade?.toStringAsFixed(2) ?? "Calculating..."}'),
-            backgroundColor: AppTheme.accentColor,
-            behavior: SnackBarBehavior.floating,
-          ),
+        final newRecord = AcademicRecord(
+          id: null,
+          semester: selectedSemester,
+          course: _courseNameController.text.trim(),
+          grade: double.parse(selectedGrade),
+          creditHours: double.parse(selectedCreditHours),
         );
+
+        success = await provider.addRecord(newRecord);
+        successMessage = 'Course added successfully!';
       }
 
-      // Notify parent widget that a course was added
-      if (widget.onCourseAdded != null) {
-        widget.onCourseAdded!();
-      }
-
-      // Navigate back with the created record
-      if (mounted) {
-        Navigator.pop(context, createdRecord);
-      }
-    } catch (e) {
-      _showErrorSnackBar('Failed to add course: ${e.toString()}');
-    }
-  }
-
-  /// Update existing academic record
-  Future<void> _updateRecord() async {
-    if (widget.editingRecord?.id == null) {
-      _showErrorSnackBar('Cannot update: Invalid record ID');
-      return;
-    }
-
-    try {
-      // Create updated record object
-      final updatedRecord = AcademicRecord(
-        id: widget.editingRecord!.id,
-        semester: selectedSemester,
-        course: _courseNameController.text.trim(),
-        grade: double.parse(selectedGrade),
-        creditHours: double.parse(selectedCreditHours),
-        // Keep existing calculated values (they'll be recalculated by backend)
-        obtainedGrade: widget.editingRecord!.obtainedGrade,
-        cgpa: widget.editingRecord!.cgpa,
-      );
-
-      // Call the API to update the record
-      final result = await _api.updateRecord(updatedRecord);
-
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Course updated successfully! New GPA: ${result.obtainedGrade?.toStringAsFixed(2) ?? "Calculating..."}'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-
-      // Notify parent widget that a course was updated
-      if (widget.onCourseUpdated != null) {
-        widget.onCourseUpdated!();
-      }
-
-      // Navigate back with the updated record
-      if (mounted) {
-        Navigator.pop(context, result);
+      if (success && mounted) {
+        _showSnackBar(successMessage, Colors.green);
+      } else if (mounted) {
+        // Show error from provider
+        final errorMessage = provider.errorMessage ?? 'Unknown error occurred';
+        _showSnackBar(errorMessage, Colors.red);
       }
     } catch (e) {
-      _showErrorSnackBar('Failed to update course: ${e.toString()}');
+      _showSnackBar('Operation failed: ${e.toString()}', Colors.red);
     }
   }
 
   /// Helper method to show error messages
-  void _showErrorSnackBar(String message) {
+  void _showSnackBar(String message, Color backgroundColor) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: Colors.red,
+          backgroundColor: backgroundColor,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -263,348 +188,397 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Course Name
-              const Text(
-                'Course Name',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryLightColor),
-                ),
-                child: TextField(
-                  controller: _courseNameController,
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    hintText: 'Enter course name',
-                    hintStyle: TextStyle(color: AppTheme.textSecondary),
-                  ),
-                  style: const TextStyle(color: AppTheme.textPrimary),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Grade and Credit Hours in a Row
-              Row(
+      body: Consumer<AcademicRecordsProvider>(
+        builder: (context, provider, child) {
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Grade Dropdown
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Grade',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                            border:
-                                Border.all(color: AppTheme.primaryLightColor),
-                          ),
-                          child: DropdownButtonFormField<String>(
-                            value: selectedGrade,
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              contentPadding:
-                                  EdgeInsets.symmetric(horizontal: 16),
-                            ),
-                            icon: const Icon(Icons.keyboard_arrow_down,
-                                color: AppTheme.primaryColor),
-                            dropdownColor: AppTheme.surfaceColor,
-                            items: grades.map((Map<String, dynamic> grade) {
-                              return DropdownMenuItem<String>(
-                                value: grade['point'],
-                                child: Text(
-                                  '${grade['letter']} (${grade['point']})',
-                                  style: TextStyle(
-                                    color: _getGradeColor(grade['point']),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                selectedGrade = newValue!;
-                              });
-                            },
-                          ),
-                        ),
-                      ],
+                  // Course Name
+                  const Text(
+                    'Course Name',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.primaryLightColor),
+                    ),
+                    child: TextField(
+                      controller: _courseNameController,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        hintText: 'Enter course name',
+                        hintStyle: TextStyle(color: AppTheme.textSecondary),
+                      ),
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
-                  // Credit Hours Dropdown
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Credit Hours',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                            border:
-                                Border.all(color: AppTheme.primaryLightColor),
-                          ),
-                          child: DropdownButtonFormField<String>(
-                            value: selectedCreditHours,
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              contentPadding:
-                                  EdgeInsets.symmetric(horizontal: 16),
+                  // Grade and Credit Hours in a Row
+                  Row(
+                    children: [
+                      // Grade Dropdown
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Grade',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.textSecondary,
+                              ),
                             ),
-                            icon: const Icon(Icons.keyboard_arrow_down,
-                                color: AppTheme.primaryColor),
-                            dropdownColor: AppTheme.surfaceColor,
-                            items: creditHours.map((String hours) {
-                              return DropdownMenuItem<String>(
-                                value: hours,
-                                child: Text(hours),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                selectedCreditHours = newValue!;
-                              });
-                            },
-                          ),
+                            const SizedBox(height: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: AppTheme.primaryLightColor),
+                              ),
+                              child: DropdownButtonFormField<String>(
+                                value: selectedGrade,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding:
+                                      EdgeInsets.symmetric(horizontal: 16),
+                                ),
+                                icon: const Icon(Icons.keyboard_arrow_down,
+                                    color: AppTheme.primaryColor),
+                                dropdownColor: AppTheme.surfaceColor,
+                                items: grades.map((Map<String, dynamic> grade) {
+                                  return DropdownMenuItem<String>(
+                                    value: grade['point'],
+                                    child: Text(
+                                      '${grade['letter']} (${grade['point']})',
+                                      style: TextStyle(
+                                        color: _getGradeColor(grade['point']),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    selectedGrade = newValue!;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 16),
+
+                      // Credit Hours Dropdown
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Credit Hours',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: AppTheme.primaryLightColor),
+                              ),
+                              child: DropdownButtonFormField<String>(
+                                value: selectedCreditHours,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding:
+                                      EdgeInsets.symmetric(horizontal: 16),
+                                ),
+                                icon: const Icon(Icons.keyboard_arrow_down,
+                                    color: AppTheme.primaryColor),
+                                dropdownColor: AppTheme.surfaceColor,
+                                items: creditHours.map((String hours) {
+                                  return DropdownMenuItem<String>(
+                                    value: hours,
+                                    child: Text(hours),
+                                  );
+                                }).toList(),
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    selectedCreditHours = newValue!;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Semester
+                  const Text(
+                    'Semester',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.primaryLightColor),
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      value: selectedSemester,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      icon: const Icon(Icons.keyboard_arrow_down,
+                          color: AppTheme.primaryColor),
+                      dropdownColor: AppTheme.surfaceColor,
+                      items: semesters.map((String semester) {
+                        return DropdownMenuItem<String>(
+                          value: semester,
+                          child: Text(
+                            'Semester $semester',
+                            style: const TextStyle(color: AppTheme.textPrimary),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          selectedSemester = newValue!;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Save Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: provider.isLoading ? null : _saveRecord,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            isEditMode ? Colors.orange : AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: provider.isLoading
+                          ? const CircularProgressIndicator(
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            )
+                          : Text(
+                              isEditMode ? 'Update Course' : 'Add Course',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  // Preview Section
+                  const SizedBox(height: 24),
+                  Card(
+                    elevation: 2,
+                    color: AppTheme.surfaceColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                isEditMode
+                                    ? 'Updated Course Preview'
+                                    : 'Course Preview',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              if (isEditMode)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    'EDITING',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange.shade700,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _courseNameController.text.isNotEmpty
+                                          ? _courseNameController.text
+                                          : 'Course Name',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Semester $selectedSemester',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                    if (isEditMode &&
+                                        widget.editingRecord != null)
+                                      Text(
+                                        'ID: ${widget.editingRecord!.id}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey.shade600,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: _getGradeColor(selectedGrade)
+                                          .withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${_getGradeLetter(selectedGrade)} ($selectedGrade)',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: _getGradeColor(selectedGrade),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '$selectedCreditHours cr',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+
+                          // Show provider status if there's any loading or error
+                          if (provider.isLoading || provider.hasError) ...[
+                            const SizedBox(height: 12),
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            if (provider.isLoading)
+                              const Row(
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Processing...',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            if (provider.hasError && !provider.isLoading)
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      provider.errorMessage!,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
-              // Semester
-              const Text(
-                'Semester',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryLightColor),
-                ),
-                child: DropdownButtonFormField<String>(
-                  value: selectedSemester,
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  icon: const Icon(Icons.keyboard_arrow_down,
-                      color: AppTheme.primaryColor),
-                  dropdownColor: AppTheme.surfaceColor,
-                  items: semesters.map((String semester) {
-                    return DropdownMenuItem<String>(
-                      value: semester,
-                      child: Text(
-                        'Semester $semester',
-                        style: const TextStyle(color: AppTheme.textPrimary),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      selectedSemester = newValue!;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveRecord,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isEditMode ? Colors.orange : AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        )
-                      : Text(
-                          isEditMode ? 'Update Course' : 'Add Course',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              ),
-
-              // Cancel button for edit mode
-              if (isEditMode) const SizedBox(height: 12),
-              // Preview Section
-              const SizedBox(height: 24),
-              Card(
-                elevation: 2,
-                color: AppTheme.surfaceColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            isEditMode
-                                ? 'Updated Course Preview'
-                                : 'Course Preview',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                          if (isEditMode)
-                            Container(
-                              margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade100,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'EDITING',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange.shade700,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _courseNameController.text.isNotEmpty
-                                      ? _courseNameController.text
-                                      : 'Course Name',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  'Semester $selectedSemester',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                                if (isEditMode && widget.editingRecord != null)
-                                  Text(
-                                    'ID: ${widget.editingRecord!.id}',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey.shade600,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: _getGradeColor(selectedGrade)
-                                      .withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '${_getGradeLetter(selectedGrade)} ($selectedGrade)',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: _getGradeColor(selectedGrade),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '$selectedCreditHours cr',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
