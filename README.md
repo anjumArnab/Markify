@@ -10,11 +10,8 @@ Markify is a lightweight Flutter app that tracks your CGPA using **Google Sheets
 
 ---
 ## Preview
-![Home](assets/t01.png)
-![Add Course](assets/t02.png)
-![Update Course](assets/t03.png)
-![Backup & Restore](assets/t04.png)
-![Backup & Restore](assets/t05.png)
+![Markify](assets/markify.gif)
+
 
 ## Script for `code.gs`
 
