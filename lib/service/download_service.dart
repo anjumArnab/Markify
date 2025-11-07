@@ -502,7 +502,7 @@ class DownloadService {
           children: [
             const Icon(Icons.check_circle, color: AppTheme.primaryColor),
             const SizedBox(width: 8),
-            Text('$format Export Successful'),
+            Flexible(child: Text('$format Export Done')),
           ],
         ),
         content: Column(
