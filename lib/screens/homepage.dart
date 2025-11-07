@@ -89,28 +89,6 @@ class _HomepageState extends State<Homepage> {
 
   /// Delete a record with confirmation
   void _deleteRecord(AcademicRecord record) async {
-    // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Course'),
-        content: Text('Are you sure you want to delete "${record.course}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
     // Validate record ID
     if (record.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
