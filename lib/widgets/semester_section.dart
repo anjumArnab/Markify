@@ -109,7 +109,7 @@ class _SemesterSectionState extends State<SemesterSection> {
             ),
           ),
 
-          // Course List with Dismissible (only shown if expanded)
+          // Course List with Dismissible
           if (widget.isExpanded)
             hasCourses
                 ? ListView.builder(
@@ -172,16 +172,17 @@ class _SemesterSectionState extends State<SemesterSection> {
                             return false;
                           } else if (direction == DismissDirection.endToStart) {
                             // Delete action - show confirmation
-                            return await _showDeleteConfirmation(
+                            final confirmed = await _showDeleteConfirmation(
                                 context, course);
+                            if (confirmed) {
+                              // Call delete handler here, before dismissing
+                              widget.onDeleteRecord(course);
+                            }
+                            return confirmed; // Only return true if user confirmed
                           }
                           return false;
                         },
-                        onDismissed: (direction) {
-                          if (direction == DismissDirection.endToStart) {
-                            widget.onDeleteRecord(course);
-                          }
-                        },
+                        // onDismissed callback removed - deletion handled in confirmDismiss
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12.0),
                           child: Row(
