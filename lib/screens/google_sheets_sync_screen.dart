@@ -1,10 +1,11 @@
 // ignore_for_file: deprecated_member_use
 
+import '../widgets/option_card.dart';
 import '/theme.dart';
 import 'package:flutter/material.dart';
 import '../model/academic_record.dart';
 import '../service/academic_record_api.dart';
-import '../service/download_service.dart'; // Import the DownloadService
+import '../service/download_service.dart';
 
 class GoogleSheetsSyncScreen extends StatefulWidget {
   const GoogleSheetsSyncScreen({super.key});
@@ -180,7 +181,7 @@ class _GoogleSheetsSyncScreenState extends State<GoogleSheetsSyncScreen> {
                   const SizedBox(height: 16),
 
                   // Download as CSV
-                  _buildOptionCard(
+                  OptionCard(
                     title: 'Download as CSV',
                     subtitle:
                         'Excel-compatible format for spreadsheet applications',
@@ -194,7 +195,7 @@ class _GoogleSheetsSyncScreenState extends State<GoogleSheetsSyncScreen> {
                   const SizedBox(height: 12),
 
                   // Download as JSON
-                  _buildOptionCard(
+                  OptionCard(
                     title: 'Download as JSON',
                     subtitle: 'Complete data backup with all details',
                     icon: Icons.code,
@@ -218,7 +219,7 @@ class _GoogleSheetsSyncScreenState extends State<GoogleSheetsSyncScreen> {
                   const SizedBox(height: 16),
 
                   // Open Google Sheet
-                  _buildOptionCard(
+                  OptionCard(
                     title: 'Open Google Sheet',
                     subtitle:
                         'View and edit your data directly in Google Sheets',
@@ -230,7 +231,7 @@ class _GoogleSheetsSyncScreenState extends State<GoogleSheetsSyncScreen> {
                   const SizedBox(height: 12),
 
                   // Copy Sheet Link
-                  _buildOptionCard(
+                  OptionCard(
                     title: 'Copy Sheet Link',
                     subtitle: 'Copy Google Sheets link to clipboard',
                     icon: Icons.link,
@@ -241,7 +242,7 @@ class _GoogleSheetsSyncScreenState extends State<GoogleSheetsSyncScreen> {
                   const SizedBox(height: 12),
 
                   // Export from Google Sheets
-                  _buildOptionCard(
+                  OptionCard(
                     title: 'Export from Google Sheets',
                     subtitle:
                         'Download directly from Google Sheets (CSV, Excel, PDF)',
@@ -264,7 +265,7 @@ class _GoogleSheetsSyncScreenState extends State<GoogleSheetsSyncScreen> {
                   const SizedBox(height: 16),
 
                   // Restore from Google Sheet Section
-                  _buildOptionCard(
+                  OptionCard(
                     title: 'Restore from Google Sheet',
                     subtitle: 'Refresh your local data from the cloud',
                     icon: Icons.cloud_download,
@@ -375,81 +376,6 @@ class _GoogleSheetsSyncScreenState extends State<GoogleSheetsSyncScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildOptionCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color iconColor,
-    required VoidCallback onTap,
-    bool enabled = true,
-    bool isLoading = false,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: enabled ? AppTheme.surfaceColor : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: enabled && !isLoading ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: enabled
-                      ? iconColor.withOpacity(0.1)
-                      : Colors.grey.shade300,
-                  shape: BoxShape.circle,
-                ),
-                child: isLoading
-                    ? const CircularProgressIndicator()
-                    : Icon(
-                        icon,
-                        color: enabled ? iconColor : Colors.grey,
-                        size: 24,
-                      ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: enabled ? AppTheme.textPrimary : Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: enabled ? AppTheme.textSecondary : Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (enabled && !isLoading)
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: Colors.grey.shade400,
-                  size: 16,
-                ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
